@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#090909">
+<title>CM MODAS | Catálogo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="shell">
+  <a class="brand" href="#" aria-label="CM Modas">
+  <img src="logo-cm.png" alt="CM Modas" class="brand-logo">
+
+  <span class="brand-info">
+    <strong>CM MODAS</strong>
+    <small>Seu estilo tá aqui!</small>
+  </span>
+</a>
+
+  <div class="header-right">
+    <button class="tiny-btn" id="adminAccess">ÁREA ADMIN</button>
+  </div>
+</header>
+
+
+<main class="shell">
+ 
+<!-- BANNER PRINCIPAL CM MODAS -->
+<section class="hero banner-slot" id="home">
+  <img
+    src="Banner 2.png"
+    alt="CM MODAS - Preço, Qualidade e Facilidade para sua compra"
+    class="banner-image"
+  >
+</section>
+
+<!-- TELA ANTIGA MANTIDA PARA COMPATIBILIDADE COM O SCRIPT -->
+<section id="genderScreen" style="display:none"></section>
+
+<!-- CATÁLOGO -->
+<section class="catalog active" id="catalog">
+
+  <!-- ABAS MASCULINO E FEMININO -->
+  <div class="gender-tabs">
+    <button type="button" class="gender-card active" data-gender="masculino">
+      Masculino
+    </button>
+
+    <button type="button" class="gender-card" data-gender="feminino">
+      Feminino
+    </button>
+  </div>
+
+  <!-- CATEGORIAS -->
+  <div class="category-tabs" id="categoryTabs">
+
+    <button class="category-tab active" data-category="Destaques">Destaques</button>
+    <button class="category-tab" data-category="Camisas">Camisas</button>
+    <button class="category-tab" data-category="Bermuda">Bermuda</button>
+    <button class="category-tab" data-category="Calça">Calça</button>
+    <button class="category-tab" data-category="Conjunto">Conjunto</button>
+    <button class="category-tab" data-category="Calçados">Calçados</button>
+    <button class="category-tab" data-category="Acessórios">Acessórios</button>
+
+  </div>
+
+
+<!-- BOTÃO DO CARRINHO -->
+<div class="cart-toolbar">
+  <button type="button" id="openCart" class="cart-main-btn">
+   <span class="cart-icon">
+  <svg viewBox="0 0 24 24" width="23" height="23"
+       fill="none" stroke="currentColor"
+       stroke-width="1.8" stroke-linecap="round"
+       stroke-linejoin="round">
+    <circle cx="9" cy="21" r="1"/>
+    <circle cx="19" cy="21" r="1"/>
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+  </svg>
+</span>
+    <span>MEU CARRINHO</span>
+    <span class="cart-counter" id="cartCount">0</span>
+  </button>
+</div>
+
+
+<div class="catalog-head">
+  <div>
+    <h2 class="catalog-title" id="catalogTitle">Coleção masculina</h2>
+    <p class="catalog-sub">Todas as peças do catálogo estão disponíveis para entrega.</p>
+  </div>
+</div>
+
+    <button class="back-btn" id="backHome" style="display:none">
+      ← Coleções
+    </button>
+  </div>
+
+  <div class="catalog-tools">
+    <input class="search" id="search" type="search" placeholder="Buscar peça...">
+
+    <select class="filter" id="sort">
+      <option value="default">Mais recentes</option>
+      <option value="priceUp">Menor preço</option>
+      <option value="priceDown">Maior preço</option>
+    </select>
+  </div>
+
+  <!-- PRODUTOS -->
+  <div class="product-list" id="productList"></div>
+
+</section>
+
+
+</main>
+
+<footer><strong>CM MODAS</strong><p>Elegância em cada detalhe · © <span id="year"></span> CM MODAS</p></footer>
+
+<div class="modal-bg" id="fullModal">
+  <div class="full-modal">
+    <button class="close" id="closeFull">×</button>
+    <img id="fullImage" alt="Visualização ampliada">
+    <div class="full-caption" id="fullCaption"></div>
+  </div>
+</div>
+
+<div class="admin-bg" id="adminBg">
+ <section class="admin-panel">
+  <div class="admin-head"><h2>Painel CM MODAS</h2><button class="close" id="closeAdmin" style="position:static">×</button></div>
+
+  <div id="adminLogin">
+   <p style="font-size:11px;color:#aaa">Digite sua senha para administrar a loja.</p>
+   <div class="field"><label>Senha de acesso</label><input id="adminPassword" type="password" inputmode="numeric" placeholder="Sua senha"></div>
+   <div class="admin-actions"><button class="gold-btn" id="loginAdmin">Entrar no painel</button></div>
+  </div>
+
+  <div id="adminContent" hidden>
+   <p style="font-size:11px;color:#aaa;line-height:1.6">Gerencie clientes, vendas, recebimentos, estoque e produtos em áreas separadas.</p>
+
+   <nav class="management-nav" aria-label="Navegação administrativa">
+    <button class="management-tab active" data-panel="dashboardPanel">Visão geral</button>
+    <button class="management-tab" data-panel="clientsPanel">Clientes</button>
+    <button class="management-tab" data-panel="salesPanel">Vendas</button>
+    <button class="management-tab" data-panel="financePanel">Parcelas e pagamentos</button>
+    <button class="management-tab" data-panel="productsPanel">Produtos</button>
+    <button class="management-tab" data-panel="bannersPanel">Banners</button>
+   </nav>
+
+   <!-- VISÃO GERAL -->
+   <section class="management-panel active" id="dashboardPanel">
+    <div class="section-heading">
+     <div><span class="section-kicker">CM MODAS · CONTROLE</span><h3>Visão geral</h3><p>Resumo financeiro, vendas e situação do estoque.</p></div>
+     <button class="ghost-btn" id="refreshManagement">Atualizar</button>
+    </div>
+
+    <div class="dashboard-finance">
+     <article class="metric-card balance full">
+      <div class="cash-card-top"><span>Saldo do caixa</span><small id="mSalesCount" class="cash-sales-count">0 vendas</small></div>
+      <strong id="mCash">R$ 0,00</strong>
+      <small class="cash-description">Dinheiro efetivamente recebido</small>
+      <div class="cash-card-actions">
+       <button type="button" id="addRevenueBtn" class="cash-action revenue-action">+ Receita</button>
+       <button type="button" id="addExpenseBtn" class="cash-action expense-action">− Despesa</button>
+       <button type="button" id="cashHistoryBtn" class="cash-action history-action">☷ Histórico</button>
+      </div>
+     </article>
+
+     <article class="metric-card revenue"><span>Faturamento total</span><strong id="mRevenue">R$ 0,00</strong><small>Todo o período</small></article>
+     <article class="metric-card profit"><span>Lucro total</span><strong id="mProfit">R$ 0,00</strong><small>Lucro das vendas realizadas</small></article>
+
+     <article class="metric-card investment full">
+      <span>Valor em estoque</span><strong id="mInvestment">R$ 0,00</strong>
+      <small>Investimento em peças disponíveis</small>
+      <small id="mStockUnits" class="stock-units-label">0 unidades disponíveis</small>
+     </article>
+
+     <article class="metric-card stock-profit full"><span>Lucro total do estoque</span><strong id="mStockProfit">R$ 0,00</strong><small>Lucro previsto após vender todas as peças</small></article>
+     <article class="metric-card stock-revenue full"><span>Faturamento do estoque</span><strong id="mStockRevenue">R$ 0,00</strong><small>Valor total de venda das peças disponíveis</small></article>
+     <article class="metric-card products"><span>Peças cadastradas</span><strong id="mProducts">0</strong><small>Produtos no catálogo</small></article>
+     <article class="metric-card clients"><span>Clientes</span><strong id="mClients">0</strong><small>Clientes cadastrados</small></article>
+     <article class="metric-card pending full"><span>Parcelas pendentes</span><strong id="mPending">R$ 0,00</strong><small id="mPendingCount">0 parcelas em aberto</small></article>
+    </div>
+
+    <div class="dashboard-columns">
+     <article class="management-card">
+      <div class="card-title-row"><div><h4>Vendas recentes</h4><p>Últimos registros realizados</p></div><span class="mini-tag">VENDAS</span></div>
+      <div id="recentSales" class="compact-list"></div>
+     </article>
+     <article class="management-card">
+      <div class="card-title-row"><div><h4>Atenção ao estoque</h4><p>Produtos com 5 unidades ou menos</p></div><span class="mini-tag warning">ESTOQUE</span></div>
+      <div id="lowStockList" class="compact-list"></div>
+     </article>
+    </div>
+
+    <article class="management-card chart-card">
+     <div class="card-title-row"><div><h4>Faturamento dos últimos 7 dias</h4><p>Valores calculados pelas vendas registradas</p></div><span class="mini-tag">R$</span></div>
+     <div id="revenueChart" class="simple-chart"></div>
+    </article>
+   </section>
+
+   <!-- CLIENTES -->
+   <section class="management-panel" id="clientsPanel">
+    <div class="section-heading"><div><span class="section-kicker">RELACIONAMENTO</span><h3>Clientes</h3><p>Cadastre clientes e consulte o histórico individual.</p></div></div>
+    <form id="clientForm" class="management-form">
+     <input type="hidden" id="clientId">
+     <div class="field"><label>Nome do cliente</label><input id="clientName" required placeholder="Nome completo"></div>
+     <div class="field"><label>Telefone / WhatsApp</label><input id="clientPhone" required placeholder="(21) 99999-9999"></div>
+     <div class="field full"><label>Observações</label><textarea id="clientNotes" placeholder="Informações adicionais (opcional)"></textarea></div>
+     <div class="form-actions"><button class="gold-btn" type="submit">Salvar cliente</button><button class="ghost-btn" type="button" id="clearClientForm">Limpar</button></div>
+    </form>
+    <div class="management-toolbar"><input id="clientSearch" class="management-search" placeholder="Buscar cliente por nome ou telefone..."></div>
+    <div id="clientsList" class="data-list"></div>
+    <div id="clientHistory" class="management-card history-card" hidden></div>
+   </section>
+
+  <!-- CM MODAS | SEÇÃO DE VENDAS -->
+
+
+<section id="salesPanel" class="management-panel">
+  <div class="sales-heading">
+    <div>
+      <div class="sales-eyebrow">CM MODAS · OPERAÇÃO COMERCIAL</div>
+      <h2>Registrar venda</h2>
+      <p class="sales-subtitle">Monte o pedido, confira os valores e finalize quando estiver tudo certo.</p>
+    </div>
+  </div>
+
+  <form id="saleForm" novalidate>
+    <div class="sales-workspace">
+      <div class="sales-card">
+        <div class="sales-heading">
+          <div><div class="sales-eyebrow">01 · Identificação</div><h3>Dados da venda</h3><p class="sales-subtitle">Escolha como deseja registrar este pedido.</p></div>
+        </div>
+
+       
+
+<div class="sales-type-switch">
+  <div class="sales-type-option">
+    <input type="radio" name="saleType" id="saleTypeDirect" value="direct">
+    <label for="saleTypeDirect">
+      <span>↗</span> Venda direta
+    </label>
+  </div>
+
+  <div class="sales-type-option">
+    <input type="radio" name="saleType" id="saleTypeClient" value="client" checked>
+    <label for="saleTypeClient">
+      <span>♙</span> Venda com cliente
+    </label>
+  </div>
+</div>
+
+
+        <div class="sales-client-box" id="saleClientField">
+          <div class="sales-field">
+            <label for="saleClient">CLIENTE DA VENDA</label>
+            <select id="saleClient"><option value="">Selecione um cliente</option></select>
+          </div>
+        </div>
+
+        <div class="sales-heading" style="margin-top:20px">
+          <div><div class="sales-eyebrow">02 · Produtos</div><h3>Composição do pedido</h3><p class="sales-subtitle">Adicione vários produtos sem perder o cliente ou os itens já incluídos.</p></div>
+        </div>
+
+        <div class="sales-grid">
+          <div class="sales-field">
+            <label for="saleProduct">PRODUTO</label>
+            <select id="saleProduct" required><option value="">Selecione um produto</option></select>
+          </div>
+          <div class="sales-field">
+            <label for="saleQty">QUANTIDADE</label>
+            <input id="saleQty" type="number" min="1" step="1" value="1" inputmode="numeric">
+          </div>
+          <div class="sales-field">
+            <label for="saleUnitPrice">PREÇO UNITÁRIO</label>
+            <input id="saleUnitPrice" type="number" min="0" step="0.01" placeholder="0,00">
+          </div>
+        </div>
+        <div class="sales-field" style="margin-top:10px;max-width:220px">
+          <label for="saleStockDisplay">ESTOQUE DISPONÍVEL</label>
+          <input id="saleStockDisplay" type="text" readonly placeholder="Selecione um produto">
+        </div>
+        <div class="sales-product-actions">
+          <button class="sales-btn sales-btn-primary" id="addSaleProduct" type="button">＋ ADICIONAR PRODUTO</button>
+        </div>
+
+        <div class="sales-cart-head"><strong>Produtos desta venda</strong><span class="sales-count" id="saleCartCount">0 ITENS</span></div>
+        <div class="sales-cart-list" id="saleCart"><div class="sales-empty">Seu carrinho está vazio. Adicione o primeiro produto.</div></div>
+      </div>
+
+      <aside class="sales-card">
+        <div class="sales-heading">
+          <div><div class="sales-eyebrow">03 · Conferência</div><h3>Resumo financeiro</h3><p class="sales-subtitle">Valores atualizados conforme o pedido.</p></div>
+        </div>
+
+        <div class="sales-summary">
+          <div class="sales-summary-line"><span>Subtotal dos produtos</span><strong id="saleSubtotal">R$ 0,00</strong></div>
+          <div class="sales-summary-line profit"><span>Lucro disponível para desconto</span><strong id="saleAvailableProfit">R$ 0,00</strong></div>
+          <div class="sales-field">
+            <label for="saleDiscount">DESCONTO (R$)</label>
+            <input id="saleDiscount" type="number" min="0" step="0.01" value="0" placeholder="0,00">
+          </div>
+          <div class="sales-summary-line"><span>Desconto aplicado</span><strong id="saleDiscountDisplay">R$ 0,00</strong></div>
+          <div class="sales-summary-line total"><span>Total da venda</span><strong id="saleTotal">R$ 0,00</strong></div>
+        </div>
+
+        <div class="sales-payment-box">
+          <h4>Condição de pagamento</h4>
+          <div class="sales-payment-grid">
+            <div class="sales-field full">
+              <label for="salePaymentMode">FORMA DE PAGAMENTO</label>
+              <select id="salePaymentMode">
+                <option value="cash">À vista · pagamento integral</option>
+                <option value="installments">Parcelado · parcelas personalizadas</option>
+                <option value="open">Em aberto · sem vencimento definido</option>
+              </select>
+            </div>
+            <div class="sales-field full" id="saleEntryField">
+              <label for="saleEntry">ENTRADA / VALOR RECEBIDO (R$)</label>
+              <input id="saleEntry" type="number" min="0" step="0.01" value="0" placeholder="0,00">
+            </div>
+          </div>
+
+          <div class="sales-summary-line" style="margin-top:12px"><span>Saldo a receber</span><strong id="saleRemaining">R$ 0,00</strong></div>
+
+          <div class="sales-installments" id="saleInstallmentFields" hidden>
+            <div class="sales-installments-top">
+              <strong>Plano de parcelas</strong>
+              <button class="sales-btn sales-btn-light" id="addManualInstallment" type="button">＋ ADICIONAR PARCELA</button>
+            </div>
+            <div id="saleManualInstallments"></div>
+            <div class="sales-installment-total"><span>Total das parcelas</span><strong id="saleInstallmentsTotal">R$ 0,00</strong></div>
+            <p class="sales-hint" id="saleInstallmentHint">Defina individualmente o valor e a data de vencimento de cada parcela. A soma deve ser igual ao saldo a receber.</p>
+          </div>
+
+          <button class="sales-btn sales-btn-primary sales-submit" id="finishSaleButton" type="submit">✓ FINALIZAR E REGISTRAR VENDA</button>
+          <p class="sales-hint">O pedido permanece nesta tela enquanto você adiciona produtos. Os campos só serão limpos depois que a venda for registrada com sucesso.</p>
+        </div>
+      </aside>
+    </div>
+  </form>
+
+  <div class="sales-card sales-history">
+    <div class="sales-heading">
+      <div><div class="sales-eyebrow">04 · Acompanhamento</div><h3>Histórico de vendas</h3><p class="sales-subtitle">Consulte pedidos registrados e seus respectivos detalhes.</p></div>
+    </div>
+    <div class="sales-history-tools">
+      <input id="salesSearch" type="search" placeholder="Buscar cliente ou produto...">
+      <select id="salesTypeFilter"><option value="all">Todos os tipos</option><option value="direct">Venda direta</option><option value="client">Com cliente</option></select>
+    </div>
+    <div id="salesList"></div>
+    <div id="saleDetails"></div>
+  </div>
+</section>
+
+
+   <!-- PARCELAS E CALENDÁRIO NA MESMA ABA -->
+   <section class="management-panel" id="financePanel">
+    <div class="section-heading"><div><span class="section-kicker">CONTAS A RECEBER</span><h3>Parcelas e pagamentos</h3><p>Acompanhe vencimentos, registre recebimentos e consulte o calendário financeiro.</p></div></div>
+    <div class="finance-summary">
+     <div><span>Em aberto</span><strong id="financeOpen">R$ 0,00</strong></div>
+     <div><span>Em atraso</span><strong id="financeLate">R$ 0,00</strong></div>
+     <div><span>Recebido</span><strong id="financePaid">R$ 0,00</strong></div>
+    </div>
+    <div class="management-toolbar"><select id="installmentFilter" class="management-search"><option value="all">Todas as parcelas</option><option value="pending">Em aberto</option><option value="late">Atrasadas</option><option value="paid">Pagas</option></select></div>
+    <div id="installmentsList" class="data-list"></div>
+
+    <div class="section-heading compact-heading">
+     <div><span class="section-kicker">AGENDA FINANCEIRA</span><h3>Calendário de vencimentos</h3><p>Vermelho: atrasadas · Amarelo: vencem em breve · Verde: pagas.</p></div>
+    </div>
+    <div class="calendar-toolbar"><button class="ghost-btn" id="calendarPrev" type="button">←</button><strong id="calendarMonth"></strong><button class="ghost-btn" id="calendarNext" type="button">→</button></div>
+    <div class="calendar-weekdays"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+    <div id="calendarGrid" class="calendar-grid"></div>
+    <div id="calendarDayDetails" class="management-card calendar-details">Selecione um dia para ver os vencimentos.</div>
+   </section>
+
+   <!-- PRODUTOS: TODOS OS CONTROLES FICAM AQUI -->
+   <section class="management-panel" id="productsPanel">
+    <div class="section-heading"><div><span class="section-kicker">CATÁLOGO E ESTOQUE</span><h3>Produtos</h3><p>Gerencie peças, custos, quantidades, cores e fotografias.</p></div></div>
+
+    <div class="stock-overview" id="stockOverview"></div>
+
+    <div class="section-heading compact-heading"><div><h3>Cadastro e edição de peças</h3><p>Adicione uma peça nova ou selecione uma cadastrada para editar.</p></div></div>
+    <div class="admin-actions">
+     <button class="gold-btn" id="newProduct" type="button">＋ Adicionar peça</button>
+     <button class="ghost-btn" id="exportData" type="button">Exportar catálogo</button>
+     <label class="ghost-btn" for="importFile" style="cursor:pointer">Importar catálogo</label>
+     <input id="importFile" type="file" accept="application/json" hidden>
+    </div>
+
+    
+<div class="admin-form" style="margin-top:16px">
+
+  <div class="field">
+    <label>Nome da peça</label>
+    <input id="pName" placeholder="Ex.: Camiseta Premium">
+  </div>
+
+  <div class="field">
+    <label>Coleção</label>
+    <select id="pGender">
+      <option value="masculino">Masculino</option>
+      <option value="feminino">Feminino</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Categoria</label>
+    <select id="pCategory"></select>
+  </div>
+
+  <div class="field">
+    <label>Preço (R$)</label>
+    <input id="pPrice" type="number" min="0" step=".01" placeholder="99.90">
+  </div>
+
+  <div class="field">
+    <label>Custo de compra (R$)</label>
+    <input id="pCost" type="number" min="0" step=".01" placeholder="Ex.: 45.00">
+  </div>
+
+  <div class="field">
+    <label>Quantidade em estoque</label>
+    <input id="pStock" type="number" min="0" step="1" placeholder="Ex.: 20" value="0">
+  </div>
+
+  <div class="field">
+    <label>Tamanhos (separados por vírgula)</label>
+    <input id="pSizes" placeholder="P, M, G, GG">
+  </div>
+
+  <div class="field full">
+    <label class="highlight-checkbox">
+      <input type="checkbox" id="pHighlight">
+      <span>
+        <strong>★ Adicionar aos Destaques</strong>
+        <small>Esta peça também aparecerá na categoria Destaques da loja.</small>
+      </span>
+    </label>
+  </div>
+
+  <div class="field full">
+    <label>Descrição</label>
+    <textarea id="pDescription" placeholder="Descreva a peça..."></textarea>
+  </div>
+
+</div>
+
+
+    <div class="color-editor">
+     <h3>CORES E FOTOS DA PEÇA</h3>
+     <div id="colorRows"></div>
+     <button class="ghost-btn" id="addColor" type="button">＋ Adicionar cor</button>
+     <p style="font-size:9px;color:#958b7b;line-height:1.5">Selecione uma imagem do seu dispositivo para cada cor. Imagens grandes podem ocupar bastante espaço no navegador.</p>
+    </div>
+
+    <div class="admin-actions">
+     <button class="gold-btn" id="saveProduct" type="button">Salvar peça</button>
+     <button class="ghost-btn" id="cancelEdit" type="button">Cancelar</button>
+     <button class="danger-btn" id="deleteProduct" type="button" hidden>Excluir peça</button>
+    </div>
+
+    
+<div class="section-heading compact-heading products-list-heading">
+  <div>
+    <h3>Produtos cadastrados</h3>
+    <p>Selecione uma coleção para visualizar e editar suas peças.</p>
+  </div>
+</div>
+
+<div class="admin-gender-tabs">
+  <button type="button" class="admin-gender-tab male" data-admin-gender="masculino">
+    <span class="gender-tab-icon">♂</span>
+    <span class="gender-tab-info">
+      <strong>Masculino</strong>
+      <small><b id="adminMaleCount">0</b> produtos cadastrados</small>
+    </span>
+    <span class="gender-tab-arrow">›</span>
+  </button>
+
+  <button type="button" class="admin-gender-tab female" data-admin-gender="feminino">
+    <span class="gender-tab-icon">♀</span>
+    <span class="gender-tab-info">
+      <strong>Feminino</strong>
+      <small><b id="adminFemaleCount">0</b> produtos cadastrados</small>
+    </span>
+    <span class="gender-tab-arrow">›</span>
+  </button>
+</div>
+
+<div id="adminProductsModal" class="admin-products-overlay" hidden>
+  <div class="admin-products-modal" role="dialog" aria-modal="true" aria-label="Produtos cadastrados">
+    <div class="admin-products-header">
+      <div>
+        <span class="admin-products-kicker">CM MODAS · CATÁLOGO</span>
+        <h3 id="adminProductsTitle">Coleção masculina</h3>
+        <p id="adminProductsSubtitle">Produtos cadastrados nesta coleção</p>
+      </div>
+      <button type="button" id="closeAdminProducts" class="admin-products-close" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="admin-products-toolbar">
+      <span id="adminProductsCount">0 produtos</span>
+      <span class="admin-products-hint">Selecione EDITAR para alterar uma peça</span>
+    </div>
+
+    <div id="adminList" class="admin-list"></div>
+  </div>
+</div>
+
+   </section>
+
+
+<!-- GERENCIAMENTO DE BANNERS -->
+<section class="management-panel" id="bannersPanel">
+
+  <div class="section-heading">
+    <div>
+      <span class="section-kicker">CM MODAS · IDENTIDADE VISUAL</span>
+      <h3>Banners da loja</h3>
+      <p>Adicione, organize e atualize os banners exibidos no catálogo.</p>
+    </div>
+  </div>
+
+  <div class="banner-admin-card">
+    <div class="banner-admin-intro">
+      <div>
+        <strong>Apresentação da loja</strong>
+        <p>Os banners serão exibidos automaticamente na página inicial.</p>
+      </div>
+      <span class="banner-admin-icon">✦</span>
+    </div>
+
+    <label for="bannerUpload" class="banner-upload-btn">
+      ＋ ADICIONAR BANNERS
+    </label>
+    <input
+      type="file"
+      id="bannerUpload"
+      accept="image/*"
+      multiple
+      hidden
+    >
+
+    <div class="banner-admin-settings">
+      <span>Intervalo de troca</span>
+      <strong>15 segundos</strong>
+    </div>
+
+    <div id="bannerAdminList" class="banner-admin-list">
+      <div class="banner-admin-empty">
+        Nenhum banner carregado.
+      </div>
+    </div>
+
+    <p class="banner-admin-note">
+      Organize a sequência dos banners e remova aqueles que não deseja mais exibir.
+    </p>
+
+    <button type="button" id="saveBanners" class="gold-btn">
+      SALVAR ALTERAÇÕES
+    </button>
+  </div>
+
+</section>
+
+
+   <div class="admin-actions"><button class="ghost-btn" id="logoutAdmin" type="button">Sair do painel</button></div>
+  </div>
+ </section>
+</div>
+
+<!-- MODAL DO HISTÓRICO DO CAIXA -->
+<div class="cash-history-modal" id="cashHistoryModal">
+ <div class="cash-history-box">
+  <div class="cash-history-header">
+   <div><h3>Histórico de movimentações</h3><p>Entradas e saídas do caixa</p></div>
+   <button type="button" id="closeCashHistory">×</button>
+  </div>
+  <div class="cash-history-summary">
+   <div><small>Total de entradas</small><strong id="historyIncome">R$ 0,00</strong></div>
+   <div><small>Total de despesas</small><strong id="historyExpenses">R$ 0,00</strong></div>
+  </div>
+  <div id="cashHistoryList" class="cash-history-list"></div>
+ </div>
+</div>
+
+
+<!-- MODAL DO CARRINHO -->
+<div class="cart-modal" id="cartModal">
+  <div class="cart-box">
+
+    <div class="cart-header">
+      <div>
+        <small>CM MODAS</small>
+        <h2>Meu carrinho</h2>
+      </div>
+      <button type="button" id="closeCart" class="cart-close">✕</button>
+    </div>
+
+    <div id="cartItems" class="cart-items">
+      <div class="cart-empty">
+        <span>🛍️</span>
+        <strong>Seu carrinho está vazio</strong>
+        <p>Adicione algumas peças para montar seu pedido.</p>
+      </div>
+    </div>
+
+    <div class="cart-footer">
+      <div class="cart-total-row">
+        <span>Total do pedido</span>
+        <strong id="cartTotal">R$ 0,00</strong>
+      </div>
+
+      <button type="button" id="sendCartWhatsapp" class="cart-whatsapp">
+        <span>WHATSAPP</span> ↗
+      </button>
+
+      <button type="button" id="continueShopping" class="cart-continue">
+        CONTINUAR COMPRANDO
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>
