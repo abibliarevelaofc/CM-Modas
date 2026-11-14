@@ -5239,3 +5239,286 @@ footer strong
     transform: rotate(360deg);
   }
 }
+
+
+/* =========================================
+   CM MODAS — MOVIMENTO DA LOJA
+========================================= */
+
+#storeMovementPanel {
+  width: 100%;
+  animation: movementFadeIn .3s ease;
+}
+
+@keyframes movementFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* FILTROS DE PERÍODO */
+
+.movement-periods {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+.movement-period {
+  border: 1px solid rgba(255,255,255,.10);
+  background: #171717;
+  color: #aaa;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.movement-period:hover {
+  border-color: #b18a4a;
+  color: #fff;
+}
+
+.movement-period.active {
+  background: linear-gradient(135deg, #b58a49, #86602c);
+  border-color: #c6a064;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(181,138,73,.18);
+}
+
+/* GRADE DOS INDICADORES */
+
+.movement-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.movement-stat-card {
+  position: relative;
+  min-width: 0;
+  min-height: 135px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #202020, #141414);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.16);
+  transition: .25s ease;
+}
+
+.movement-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(190,151,88,.35);
+}
+
+.movement-stat-card::after {
+  content: "";
+  position: absolute;
+  width: 85px;
+  height: 85px;
+  right: -30px;
+  top: -30px;
+  border-radius: 50%;
+  background: rgba(181,138,73,.06);
+  pointer-events: none;
+}
+
+.movement-stat-card > span {
+  color: #aaa;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+
+.movement-stat-card > strong {
+  color: #f0d19a;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.1;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.movement-stat-card > small {
+  color: #777;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* GRÁFICO */
+
+.movement-chart-card {
+  margin-top: 18px;
+  padding: 22px;
+  background: linear-gradient(145deg, #202020, #151515);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.movement-chart-card .card-title-row {
+  margin-bottom: 20px;
+}
+
+.movement-chart-card h4 {
+  color: #f2e7d5;
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.movement-chart-card p {
+  color: #858585;
+  font-size: 11px;
+  margin: 0;
+}
+
+.movement-chart-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  min-height: 220px;
+}
+
+#movementChart {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* TEMPO TOTAL */
+
+.movement-duration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 22px;
+  background: linear-gradient(120deg, #242017, #171717);
+  border: 1px solid rgba(181,138,73,.2);
+  border-radius: 15px;
+}
+
+.movement-duration-card h4 {
+  color: #eee1cd;
+  font-size: 14px;
+  margin: 0 0 7px;
+}
+
+.movement-duration-card p {
+  color: #888;
+  font-size: 11px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.movement-duration-card > strong {
+  color: #e7c58d;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(20px, 3vw, 29px);
+  white-space: nowrap;
+}
+
+/* ÚLTIMA ATUALIZAÇÃO */
+
+#movementUpdated {
+  display: block;
+  margin-top: 14px;
+  color: #777;
+  font-size: 10px;
+  text-align: right;
+}
+
+/* RESPONSIVIDADE — TABLETS */
+
+@media (max-width: 850px) {
+  .movement-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .movement-chart-container {
+    height: 250px;
+  }
+}
+
+/* RESPONSIVIDADE — CELULARES */
+
+@media (max-width: 520px) {
+  .movement-periods {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .movement-period {
+    padding: 11px 5px;
+    font-size: 11px;
+  }
+
+  .movement-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .movement-stat-card {
+    min-height: 118px;
+    padding: 14px 12px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+
+  .movement-stat-card > span {
+    font-size: 10px;
+  }
+
+  .movement-stat-card > strong {
+    font-size: 25px;
+  }
+
+  .movement-stat-card > small {
+    font-size: 9px;
+  }
+
+  .movement-chart-card {
+    padding: 15px 12px;
+    border-radius: 13px;
+  }
+
+  .movement-chart-container {
+    height: 220px;
+    min-height: 200px;
+  }
+
+  .movement-duration-card {
+    padding: 17px 14px;
+    gap: 10px;
+  }
+
+  .movement-duration-card h4 {
+    font-size: 12px;
+  }
+
+  .movement-duration-card p {
+    font-size: 10px;
+  }
+
+  .movement-duration-card > strong {
+    font-size: 21px;
+  }
+}

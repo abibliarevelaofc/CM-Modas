@@ -140,6 +140,152 @@ function safeText(v){
  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+// ============================================================
+// CM MODAS — MONITORAMENTO DO CATÁLOGO PÚBLICO
+// ============================================================
+
+const storeMovement = (() => {
+
+  let sessionId = sessionStorage.getItem("cm_store_session");
+
+  if (!sessionId) {
+    sessionId = "cm_" +
+      Date.now().toString(36) + "_" +
+      Math.random().toString(36).slice(2, 12);
+
+    sessionStorage.setItem("cm_store_session", sessionId);
+  }
+
+  let heartbeatTimer = null;
+  let trackingActive = false;
+
+  function isAdminOpen() {
+    const panel = document.querySelector("#adminBg");
+
+    return (
+      admin === true ||
+      document.body.classList.contains("admin-mode") ||
+      panel?.classList.contains("open") === true
+    );
+  }
+
+  async function heartbeat() {
+    if (!trackingActive || isAdminOpen()) {
+      stop();
+      return;
+    }
+
+    try {
+      await fetch("/api/store-movement/heartbeat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId,
+          source: "catalog"
+        }),
+        keepalive: true
+      });
+
+    } catch (error) {
+      console.warn("Movimento da loja:", error);
+    }
+  }
+
+  function start() {
+    if (trackingActive || isAdminOpen()) return;
+
+    trackingActive = true;
+
+    heartbeat();
+
+    heartbeatTimer = setInterval(() => {
+      heartbeat();
+    }, 25000);
+  }
+
+  function stop() {
+    trackingActive = false;
+
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  function checkAdmin() {
+    if (isAdminOpen()) {
+      stop();
+    } else {
+      start();
+    }
+  }
+
+  // Detecta a abertura e o fechamento do painel administrativo
+  const adminPanel = document.querySelector("#adminBg");
+
+  if (adminPanel) {
+    const observer = new MutationObserver(checkAdmin);
+
+    observer.observe(adminPanel, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+
+  // Também detecta mudanças no modo administrativo
+  const bodyObserver = new MutationObserver(checkAdmin);
+
+  bodyObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"]
+  });
+
+  // Ao voltar para a aba, verifica se pode continuar contando
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stop();
+    } else {
+      checkAdmin();
+    }
+  });
+
+  // Para o monitoramento ao sair da página
+  window.addEventListener("pagehide", stop);
+
+  // Inicia somente se o painel administrativo estiver fechado
+  checkAdmin();
+
+    function track(type, productId = null) {
+    if (!trackingActive || isAdminOpen()) return;
+
+    fetch("/api/store-movement/event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId,
+        source: "catalog",
+        type,
+        productId
+      }),
+      keepalive: true
+    }).catch(error => {
+      console.warn("Erro ao registrar movimento:", error);
+    });
+  }
+
+  return {
+    start,
+    stop,
+    checkAdmin,
+    track,
+    getSessionId: () => sessionId
+  };
+
+})();
 
 // NAVEGAÇÃO
 const categoryGroups = {
@@ -465,7 +611,9 @@ function updateWhatsapp(){
  whatsapp.href="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message);
 }
 
-
+whatsapp.addEventListener("click", () => {
+  storeMovement.trackEvent("whatsapp", p.id);
+});
 
   async function selectColor(i) {
   try {
@@ -573,6 +721,8 @@ if (!document.getElementById("cm-like-animation-style")) {
 }
 
 likeButton.addEventListener("click", () => {
+  storeMovement.track("like", p.id);
+
   // Atualização imediata, sem esperar o servidor
   p.likes = (Number(p.likes) || 0) + 1;
   likesPending++;
@@ -1320,6 +1470,11 @@ function renderCart(){
 // ABRIR E FECHAR CARRINHO
 function openCart(){
  renderCart();
+
+ if (!admin) {
+  storeMovement.trackEvent("cart");
+ }
+
  document.querySelector("#cartModal")?.classList.add("open");
 }
 
@@ -1351,7 +1506,11 @@ function sendCartWhatsapp(){
  message+=`*TOTAL DO PEDIDO: ${money(total)}*\n\n`;
  message+="Gostaria de saber as formas de pagamento e as opções de entrega para finalizar meu pedido. Desde já agradeço.";
  const url="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message);
- window.open(url,"_blank");
+ if (!admin) {
+  storeMovement.trackEvent("whatsapp");
+}
+
+window.open(url,"_blank");
 }
 
 // EVENTOS DO CARRINHO
@@ -1364,8 +1523,25 @@ document.querySelector("#cartModal")?.addEventListener("click",e=>{
  if(e.target.id==="cartModal") closeCart();
 });
 
+// MOVIMENTO: CLIQUES NO CARRINHO E WHATSAPP
+document.querySelector("#openCart")?.addEventListener("click", () => {
+  storeMovement.track("cart");
+});
 
-})(); 
+document.addEventListener("click", event => {
+  const whatsappButton = event.target.closest(".whatsapp-btn");
+
+  if (whatsappButton) {
+    const productCard = whatsappButton.closest(".product");
+    storeMovement.track("whatsapp", productCard?.dataset.id || null);
+  }
+
+  if (event.target.closest("#sendCartWhatsapp")) {
+    storeMovement.track("whatsapp");
+  }
+});
+
+})();
 
 
 /* ============================================================
@@ -1436,6 +1612,8 @@ let clients=read(STORE.clients),
     installments=read(STORE.installments),
     movements=read(STORE.movements);
 
+    let movementPeriod = "today";
+
 let stockMap=read(STORE.stock),
     costMap=read(STORE.cost),
     calendarDate=new Date(),
@@ -1501,6 +1679,201 @@ async function refreshCatalog(){
  }
 }
 
+
+async function loadMovementStats() {
+  const elements = {
+    visits: document.querySelector("#movementVisits"),
+    online: document.querySelector("#movementOnline"),
+    average: document.querySelector("#movementAverage"),
+    likes: document.querySelector("#movementLikes"),
+    likesClicks: document.querySelector("#movementLikesClicks"),
+    whatsapp: document.querySelector("#movementWhatsapp"),
+    cart: document.querySelector("#movementCart"),
+    totalTime: document.querySelector("#movementTotalTime"),
+    updated: document.querySelector("#movementUpdated")
+  };
+
+  const setText = (element, value) => {
+    if (element) element.textContent = value;
+  };
+
+  const number = (...values) => {
+    const value = values.find(v => v !== undefined && v !== null);
+    return Number(value) || 0;
+  };
+
+  const formatTime = seconds => {
+    seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) return `${hours}h ${minutes}min`;
+    if (minutes > 0) return `${minutes}min ${secs}s`;
+    return `${secs}s`;
+  };
+
+  try {
+    setText(elements.updated, "Carregando dados...");
+
+    const response = await fetch(
+      `/api/store-movement/stats?period=${movementPeriod}`,
+      {
+        headers: {
+          "x-admin-api-key": "92533911_"
+        },
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    setText(elements.visits, number(data.visits, data.visitors, data.totalVisits));
+    setText(elements.online, number(data.online, data.onlineNow));
+    setText(elements.average, formatTime(
+      number(data.averageSeconds, data.averageTime, data.averageDuration)
+    ));
+    setText(elements.likes, number(data.likes, data.totalLikes));
+    setText(elements.likesClicks, number(data.likesClicks, data.likeClicks));
+    setText(elements.whatsapp, number(data.whatsappClicks, data.whatsapp, data.whatsappCount));
+    setText(elements.cart, number(data.cartClicks, data.cart, data.cartCount));
+    setText(elements.totalTime, formatTime(
+      number(data.totalSeconds, data.totalTime, data.totalDuration)
+    ));
+
+    setText(elements.updated, "Atualizado às " +
+      new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    );
+
+    drawMovementChart(data);
+
+  } catch (error) {
+    console.error("Erro ao carregar movimento da loja:", error);
+    setText(elements.updated, "Não foi possível carregar os dados.");
+  }
+}
+
+function drawMovementChart(data) {
+  const canvas = document.querySelector("#movementChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(rect.width, 280);
+  const height = 260;
+  const ratio = window.devicePixelRatio || 1;
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  canvas.style.height = height + "px";
+
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const chartData =
+    data.chart ||
+    data.daily ||
+    data.graph ||
+    data.history ||
+    data.series ||
+    [];
+
+  const items = Array.isArray(chartData) ? chartData : [];
+
+  if (!items.length) {
+    ctx.fillStyle = "#999";
+    ctx.font = "13px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Sem dados para exibir neste período", width / 2, height / 2);
+    return;
+  }
+
+  const values = items.map(item =>
+    Number(
+      item.visits ??
+      item.visitors ??
+      item.count ??
+      item.total ??
+      item.value ??
+      0
+    )
+  );
+
+  const maxValue = Math.max(...values, 1);
+  const paddingLeft = 35;
+  const paddingRight = 15;
+  const paddingTop = 20;
+  const paddingBottom = 38;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const slotWidth = chartWidth / items.length;
+  const barWidth = Math.min(28, slotWidth * 0.58);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.10)";
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= 4; i++) {
+    const y = paddingTop + (chartHeight / 4) * i;
+
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(width - paddingRight, y);
+    ctx.stroke();
+  }
+
+  items.forEach((item, index) => {
+    const value = values[index];
+    const barHeight = (value / maxValue) * chartHeight;
+    const x = paddingLeft + slotWidth * index + (slotWidth - barWidth) / 2;
+    const y = paddingTop + chartHeight - barHeight;
+
+    const gradient = ctx.createLinearGradient(0, y, 0, paddingTop + chartHeight);
+    gradient.addColorStop(0, "#d6ad62");
+    gradient.addColorStop(1, "#80521f");
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barWidth, Math.max(barHeight, 2), 5);
+    ctx.fill();
+
+    const label = String(
+      item.label ??
+      item.date ??
+      item.day ??
+      item._id ??
+      ""
+    );
+
+    ctx.fillStyle = "#aaa";
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(label.slice(-5), x + barWidth / 2, height - 13);
+  });
+}
+
+document.querySelectorAll(".movement-period").forEach(button => {
+  button.addEventListener("click", () => {
+    movementPeriod = button.dataset.period;
+
+    document.querySelectorAll(".movement-period").forEach(item => {
+      item.classList.toggle("active", item === button);
+    });
+
+    loadMovementStats();
+  });
+});
+
+
 function setPanel(id){
  document.querySelectorAll(".management-tab").forEach(b=>{
   b.classList.toggle("active",b.dataset.panel===id);
@@ -1518,6 +1891,7 @@ function setPanel(id){
   renderCalendar();
 }
  if(id==="productsPanel")renderStockOverview();
+ if(id==="storeMovementPanel")loadMovementStats();
 }
 
 document.querySelectorAll(".management-tab").forEach(b=>{

@@ -187,6 +187,83 @@ const BannerSchema = new mongoose.Schema({
 
 const Banner = mongoose.model("Banner", BannerSchema);
 
+
+// ========================================
+// MOVIMENTO DA LOJA — ANALYTICS
+// REGISTRA SOMENTE ATIVIDADES DO CATÁLOGO
+// ========================================
+
+const StoreVisitorSchema = new mongoose.Schema({
+  sessionId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+
+  firstSeen: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
+
+  lastSeen: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
+
+  activeSeconds: {
+    type: Number,
+    default: 0,
+    min: 0
+  }
+}, { timestamps: true });
+
+const StoreVisitor = mongoose.model(
+  "StoreVisitor",
+  StoreVisitorSchema
+);
+
+
+// EVENTOS DO CATÁLOGO
+const StoreEventSchema = new mongoose.Schema({
+  sessionId: {
+    type: String,
+    required: true,
+    index: true
+  },
+
+  type: {
+    type: String,
+    required: true,
+    enum: [
+      "like",
+      "whatsapp",
+      "cart"
+    ],
+    index: true
+  },
+
+  productId: {
+    type: Number,
+    default: null
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+}, {
+  versionKey: false
+});
+
+const StoreEvent = mongoose.model(
+  "StoreEvent",
+  StoreEventSchema
+);
+
 // ========================================
 // STATUS DO SERVIDOR
 // ========================================
@@ -945,6 +1022,451 @@ app.get("/api/dashboard", asyncRoute(async (req, res) => {
       installments.filter(item => !item.paid).length
   });
 }));
+
+
+
+// ========================================
+// MOVIMENTO DA LOJA — ROTAS DE ANALYTICS
+// ========================================
+
+// Verifica se a chamada veio da área pública do catálogo
+function validarOrigemCatalogo(req, res) {
+  if (req.body?.source !== "catalog") {
+    res.status(403).json({
+      erro: "Origem não autorizada."
+    });
+    return false;
+  }
+
+  return true;
+}
+
+
+// Valida o identificador da sessão
+function validarSessaoCatalogo(sessionId) {
+  return (
+    typeof sessionId === "string" &&
+    /^[a-zA-Z0-9_-]{10,100}$/.test(sessionId)
+  );
+}
+
+
+// Calcula o início do dia no horário de Brasília
+function inicioDiaBrasilia() {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+
+  const valores = {};
+
+  partes.forEach(parte => {
+    valores[parte.type] = parte.value;
+  });
+
+  const data = `${valores.year}-${valores.month}-${valores.day}`;
+
+  return new Date(`${data}T00:00:00-03:00`);
+}
+
+
+// ========================================
+// 1. REGISTRAR ACESSO E TEMPO DE PERMANÊNCIA
+// ========================================
+
+app.post("/api/store-movement/heartbeat", async (req, res) => {
+  try {
+    if (!validarOrigemCatalogo(req, res)) return;
+
+    const { sessionId } = req.body;
+
+    if (!validarSessaoCatalogo(sessionId)) {
+      return res.status(400).json({
+        erro: "Sessão inválida."
+      });
+    }
+
+    const segundosRecebidos = Number(req.body.activeSeconds || 0);
+
+    if (!Number.isFinite(segundosRecebidos) || segundosRecebidos < 0) {
+      return res.status(400).json({
+        erro: "Tempo inválido."
+      });
+    }
+
+    // Impede que uma chamada some tempo excessivo
+    const segundos = Math.min(
+      Math.floor(segundosRecebidos),
+      45
+    );
+
+    const agora = new Date();
+
+    await StoreVisitor.findOneAndUpdate(
+      { sessionId },
+      {
+        $setOnInsert: {
+          firstSeen: agora
+        },
+        $set: {
+          lastSeen: agora
+        },
+        $inc: {
+          activeSeconds: segundos
+        }
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    return res.json({
+      sucesso: true
+    });
+
+  } catch (erro) {
+    console.error("Erro no heartbeat da loja:", erro);
+
+    return res.status(500).json({
+      erro: "Não foi possível registrar o acesso."
+    });
+  }
+});
+
+
+// ========================================
+// 2. REGISTRAR EVENTOS DO CATÁLOGO
+// Curtidas, WhatsApp e carrinho
+// ========================================
+
+app.post("/api/store-movement/event", async (req, res) => {
+  try {
+    if (!validarOrigemCatalogo(req, res)) return;
+
+    const { sessionId, type } = req.body;
+
+    if (!validarSessaoCatalogo(sessionId)) {
+      return res.status(400).json({
+        erro: "Sessão inválida."
+      });
+    }
+
+    const tiposPermitidos = [
+      "like",
+      "whatsapp",
+      "cart"
+    ];
+
+    if (!tiposPermitidos.includes(type)) {
+      return res.status(400).json({
+        erro: "Tipo de evento inválido."
+      });
+    }
+
+    // Só registra eventos de sessões que já acessaram o catálogo
+    const visitanteExiste = await StoreVisitor.exists({
+      sessionId
+    });
+
+    if (!visitanteExiste) {
+      return res.status(404).json({
+        erro: "Sessão não encontrada."
+      });
+    }
+
+    let productId = null;
+
+    if (req.body.productId !== undefined && req.body.productId !== null) {
+      productId = Number(req.body.productId);
+
+      if (!Number.isFinite(productId)) {
+        return res.status(400).json({
+          erro: "Produto inválido."
+        });
+      }
+    }
+
+    await StoreEvent.create({
+      sessionId,
+      type,
+      productId,
+      createdAt: new Date()
+    });
+
+    return res.json({
+      sucesso: true
+    });
+
+  } catch (erro) {
+    console.error("Erro ao registrar evento da loja:", erro);
+
+    return res.status(500).json({
+      erro: "Não foi possível registrar o evento."
+    });
+  }
+});
+
+
+// ========================================
+// 3. PROTEGER CONSULTA DAS ESTATÍSTICAS
+// ========================================
+
+function requireAdminAnalytics(req, res, next) {
+  const chaveConfigurada = process.env.ADMIN_API_KEY;
+  const chaveEnviada = req.get("x-admin-api-key");
+
+  if (!chaveConfigurada) {
+    return res.status(503).json({
+      erro: "Configure ADMIN_API_KEY no servidor."
+    });
+  }
+
+  if (!chaveEnviada || chaveEnviada !== chaveConfigurada) {
+    return res.status(403).json({
+      erro: "Acesso administrativo não autorizado."
+    });
+  }
+
+  next();
+}
+
+
+// ========================================
+// 4. CONSULTAR ESTATÍSTICAS DA LOJA
+// ========================================
+
+app.get(
+  "/api/store-movement/stats",
+  requireAdminAnalytics,
+  async (req, res) => {
+    try {
+      const periodo = req.query.period || "today";
+
+      const periodosPermitidos = {
+        today: 1,
+        "7d": 7,
+        "30d": 30
+      };
+
+      if (!periodosPermitidos[periodo]) {
+        return res.status(400).json({
+          erro: "Período inválido."
+        });
+      }
+
+      const agora = new Date();
+      const dias = periodosPermitidos[periodo];
+
+      const inicio = inicioDiaBrasilia();
+
+      inicio.setTime(
+        inicio.getTime() - (dias - 1) * 86400000
+      );
+
+      // Visitantes únicos dentro do período
+      const visitantes = await StoreVisitor.find({
+        firstSeen: {
+          $gte: inicio,
+          $lte: agora
+        }
+      })
+        .select("firstSeen activeSeconds")
+        .lean();
+
+      const totalVisitas = visitantes.length;
+
+      const tempoTotal = visitantes.reduce(
+        (total, visitante) => total + (visitante.activeSeconds || 0),
+        0
+      );
+
+      const tempoMedio = totalVisitas
+        ? Math.round(tempoTotal / totalVisitas)
+        : 0;
+
+      // Pessoas online: atividade nos últimos 75 segundos
+      const online = await StoreVisitor.countDocuments({
+        lastSeen: {
+          $gte: new Date(agora.getTime() - 75000)
+        }
+      });
+
+      // Eventos do período
+      const eventos = await StoreEvent.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: inicio,
+              $lte: agora
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$type",
+            total: {
+              $sum: 1
+            }
+          }
+        }
+      ]);
+
+      const totaisEventos = {
+        like: 0,
+        whatsapp: 0,
+        cart: 0
+      };
+
+      eventos.forEach(evento => {
+        totaisEventos[evento._id] = evento.total;
+      });
+
+      // Total atual de curtidas dos produtos
+      const resultadoCurtidas = await Product.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: {
+                $ifNull: ["$likes", 0]
+              }
+            }
+          }
+        }
+      ]);
+
+      const curtidasGerais = resultadoCurtidas[0]?.total || 0;
+
+      // Visitas agrupadas por dia
+      const visitasPorDia = await StoreVisitor.aggregate([
+        {
+          $match: {
+            firstSeen: {
+              $gte: inicio,
+              $lte: agora
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$firstSeen",
+                timezone: "America/Sao_Paulo"
+              }
+            },
+            total: {
+              $sum: 1
+            }
+          }
+        }
+      ]);
+
+      // Eventos agrupados por dia e tipo
+      const eventosPorDia = await StoreEvent.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: inicio,
+              $lte: agora
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              data: {
+                $dateToString: {
+                  format: "%Y-%m-%d",
+                  date: "$createdAt",
+                  timezone: "America/Sao_Paulo"
+                }
+              },
+              tipo: "$type"
+            },
+            total: {
+              $sum: 1
+            }
+          }
+        }
+      ]);
+
+      // Monta todos os dias do período, inclusive dias sem movimento
+      const mapaDias = {};
+
+      for (let i = 0; i < dias; i++) {
+        const data = new Date(
+          inicio.getTime() + i * 86400000
+        );
+
+        const partes = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Sao_Paulo",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).formatToParts(data);
+
+        const valores = {};
+
+        partes.forEach(parte => {
+          valores[parte.type] = parte.value;
+        });
+
+        const chave = `${valores.year}-${valores.month}-${valores.day}`;
+
+        mapaDias[chave] = {
+          date: chave,
+          visits: 0,
+          likes: 0,
+          whatsapp: 0,
+          cart: 0
+        };
+      }
+
+      visitasPorDia.forEach(item => {
+        if (mapaDias[item._id]) {
+          mapaDias[item._id].visits = item.total;
+        }
+      });
+
+      eventosPorDia.forEach(item => {
+        const data = item._id.data;
+        const tipo = item._id.tipo;
+
+        if (mapaDias[data] && mapaDias[data][tipo] !== undefined) {
+          mapaDias[data][tipo] = item.total;
+        }
+      });
+
+      const chart = Object.values(mapaDias);
+
+      return res.json({
+        period: periodo,
+        visits: totalVisitas,
+        online,
+        activeSeconds: tempoTotal,
+        averageSeconds: tempoMedio,
+        likesTotal: curtidasGerais,
+        likesClicks: totaisEventos.like,
+        whatsappClicks: totaisEventos.whatsapp,
+        cartClicks: totaisEventos.cart,
+        chart
+      });
+
+    } catch (erro) {
+      console.error("Erro ao consultar movimento da loja:", erro);
+
+      return res.status(500).json({
+        erro: "Não foi possível carregar as estatísticas."
+      });
+    }
+  }
+);
 
 
 // ========================================

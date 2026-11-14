@@ -149,6 +149,9 @@
     <button class="management-tab" data-panel="financePanel">Parcelas e pagamentos</button>
     <button class="management-tab" data-panel="productsPanel">Produtos</button>
     <button class="management-tab" data-panel="bannersPanel">Banners</button>
+    <button class="management-tab" data-panel="storeMovementPanel">
+  Movimento da Loja
+</button>
    </nav>
 
    <!-- VISÃO GERAL -->
@@ -566,6 +569,94 @@
       SALVAR ALTERAÇÕES
     </button>
   </div>
+
+</section>
+
+
+<!-- MOVIMENTO DA LOJA -->
+<section class="management-panel" id="storeMovementPanel">
+
+  <div class="section-heading">
+    <div>
+      <span class="section-kicker">CM MODAS · DESEMPENHO</span>
+      <h3>Movimento da Loja</h3>
+      <p>Acompanhe os acessos e as interações dos clientes no catálogo.</p>
+    </div>
+  </div>
+
+  <!-- FILTRO -->
+  <div class="movement-periods">
+    <button type="button" class="movement-period active" data-period="today">Hoje</button>
+    <button type="button" class="movement-period" data-period="7d">7 dias</button>
+    <button type="button" class="movement-period" data-period="30d">30 dias</button>
+  </div>
+
+  <!-- INDICADORES -->
+  <div class="movement-stats-grid">
+
+    <article class="movement-stat-card">
+      <span>Acessos ao catálogo</span>
+      <strong id="movementVisits">0</strong>
+      <small>Visitantes únicos</small>
+    </article>
+
+    <article class="movement-stat-card">
+      <span>Pessoas online</span>
+      <strong id="movementOnline">0</strong>
+      <small>Ativas nos últimos 75 segundos</small>
+    </article>
+
+    <article class="movement-stat-card">
+      <span>Tempo médio</span>
+      <strong id="movementAverage">0 min</strong>
+      <small>Permanência no catálogo</small>
+    </article>
+
+    <article class="movement-stat-card">
+      <span>Curtidas gerais</span>
+      <strong id="movementLikes">0</strong>
+      <small id="movementLikesClicks">0 curtidas no período</small>
+    </article>
+
+    <article class="movement-stat-card">
+      <span>Cliques no WhatsApp</span>
+      <strong id="movementWhatsapp">0</strong>
+      <small>Interesse dos clientes</small>
+    </article>
+
+    <article class="movement-stat-card">
+      <span>Cliques no carrinho</span>
+      <strong id="movementCart">0</strong>
+      <small>Interações com o carrinho</small>
+    </article>
+
+  </div>
+
+  <!-- GRÁFICO -->
+  <article class="management-card movement-chart-card">
+    <div class="card-title-row">
+      <div>
+        <h4>Movimentação do catálogo</h4>
+        <p>Acessos e interações por dia</p>
+      </div>
+    </div>
+
+    <div class="movement-chart-container">
+      <canvas id="movementChart"></canvas>
+    </div>
+  </article>
+
+  <!-- TEMPO TOTAL -->
+  <article class="management-card movement-duration-card">
+    <div>
+      <h4>Tempo total de permanência</h4>
+      <p>Tempo acumulado dos visitantes no catálogo.</p>
+    </div>
+
+    <strong id="movementTotalTime">0 min</strong>
+  </article>
+
+  <small id="movementUpdated">Aguardando dados...</small>
 
 </section>
 
