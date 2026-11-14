@@ -5522,3 +5522,60 @@ footer strong
     font-size: 21px;
   }
 }
+
+/* TEMPO DE PERMANÊNCIA — AJUSTE PROFISSIONAL */
+.movement-duration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.movement-duration-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.movement-duration-info h4 {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 5px;
+}
+
+.movement-duration-info p {
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0;
+  color: #999;
+}
+
+.movement-duration-card > strong {
+  flex-shrink: 0;
+  max-width: 48%;
+  font-size: clamp(16px, 3vw, 22px);
+  line-height: 1.2;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .movement-duration-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .movement-duration-info h4 {
+    font-size: 12px;
+  }
+
+  .movement-duration-info p {
+    font-size: 10px;
+  }
+
+  .movement-duration-card > strong {
+    font-size: 16px;
+  }
+}
