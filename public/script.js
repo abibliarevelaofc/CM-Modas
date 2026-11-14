@@ -673,33 +673,45 @@ $("#saveProduct").onclick=async()=>{
  };
 
  try{
-  const response=await fetch(
-   editingId?`/api/products/${editingId}`:"/api/products",
-   {
-    method:editingId?"PUT":"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(data)
-   }
-  );
 
-  const result=await response.json();
+  const isFeminino = data.gender === "feminino";
+
+  const url = editingId
+    ? `/api/products/${editingId}`
+    : isFeminino
+      ? "/api/products/feminino"
+      : "/api/products";
+
+  const response = await fetch(url, {
+    method: editingId ? "PUT" : "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  const result = await response.json();
 
   if(!response.ok){
-   throw new Error(result.erro||"Erro ao salvar.");
+    throw new Error(result.erro || "Erro ao salvar.");
   }
 
-  products=await fetchProducts();
+  products = await fetchProducts();
 
   clearForm();
   renderAdminList();
   render();
 
-  toast(editingId?"Peça atualizada no banco!":"Peça salva no banco!");
+  toast(editingId ? "Peça atualizada no banco!" : "Peça salva no banco!");
+
  }catch(error){
-  console.error(error);
-  toast("Não foi possível salvar no MongoDB.");
+
+  console.error("Erro ao salvar peça:", error);
+  toast(error.message || "Não foi possível salvar no MongoDB.");
+
  }
 };
+
 
 $("#deleteProduct").onclick=async()=>{
  if(!editingId)return;
