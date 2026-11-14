@@ -5579,3 +5579,30 @@ footer strong
     font-size: 16px;
   }
 }
+
+/* QUEBRA DE LINHA — TEMPO DE PERMANÊNCIA */
+.movement-duration-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.movement-duration-info {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.movement-duration-info h4 {
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.movement-duration-info p {
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
