@@ -209,7 +209,6 @@ app.get("/api/status", (req, res) => {
 app.get("/api/products", async (req, res) => {
   try {
     const products = await Product.find({})
-      .sort({ createdAt: -1 })
       .lean();
 
     console.log(
