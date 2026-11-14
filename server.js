@@ -205,13 +205,22 @@ app.get("/api/status", (req, res) => {
 // PRODUTOS
 // ========================================
 
-app.get("/api/products", asyncRoute(async (req, res) => {
-  const products = await Product.find()
-    .sort({ createdAt: -1 })
-    .lean();
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await Product.collection
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
 
-  res.json(products);
-}));
+    return res.status(200).json(products);
+  } catch (erro) {
+    console.error("Erro ao listar produtos:", erro);
+
+    return res.status(500).json({
+      erro: "Não foi possível carregar os produtos."
+    });
+  }
+});
 
 app.post("/api/products", asyncRoute(async (req, res) => {
   const body = req.body || {};
