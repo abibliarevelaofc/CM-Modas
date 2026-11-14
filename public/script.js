@@ -486,59 +486,119 @@ sizeButtons.forEach(button=>{
  
 
 
-card.querySelector(".photo-like-btn").addEventListener("click", async e => {
-  const btn = e.currentTarget;
 
-  if (btn.disabled) return;
+// CURTIDAS: RESPOSTA IMEDIATA + SALVAMENTO NO MONGODB
+const likeButton = card.querySelector(".photo-like-btn");
 
-  btn.disabled = true;
+let likesPending = 0;
+let likeQueue = Promise.resolve();
 
-  try {
-    const response = await fetch(
-      `/api/products/${p.id}/like`,
-      {
-        method: "POST"
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok || !data.sucesso) {
-      throw new Error(data.erro || "Não foi possível salvar a curtida.");
+// Cria a animação do coração uma única vez
+if (!document.getElementById("cm-like-animation-style")) {
+  const style = document.createElement("style");
+  style.id = "cm-like-animation-style";
+  style.textContent = `
+    .heart-float {
+      position: fixed;
+      z-index: 999999;
+      pointer-events: none;
+      color: #ed3155;
+      font-size: 28px;
+      animation: cmHeartFloat .9s ease-out forwards;
+      transform: translate(-50%, -50%);
     }
 
-    // Atualiza a quantidade confirmada pelo MongoDB
-    p.likes = Number(data.likes) || 0;
+    @keyframes cmHeartFloat {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(.7);
+      }
+      45% {
+        opacity: 1;
+        transform: translate(-50%, -45px) scale(1.25);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -100px) scale(.9);
+      }
+    }
 
-    // Atualiza o contador na tela
-    card.querySelector(".like-count b").textContent = p.likes;
+    .photo-like-btn {
+      transition: transform .15s ease, color .15s ease;
+      cursor: pointer;
+    }
 
-    // Atualiza o armazenamento local
-    persist();
+    .photo-like-btn:active {
+      transform: scale(.88);
+    }
 
-    // Animação do coração
-    const heart = document.createElement("span");
-    heart.className = "heart-float";
-    heart.textContent = "♥";
+    .photo-like-btn.liked .like-heart-icon {
+      color: #ed3155;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
-    heart.style.left =
-      (btn.getBoundingClientRect().left + btn.offsetWidth / 2) + "px";
+likeButton.addEventListener("click", () => {
+  // Atualização imediata, sem esperar o servidor
+  p.likes = (Number(p.likes) || 0) + 1;
+  likesPending++;
 
-    heart.style.top =
-      btn.getBoundingClientRect().top + "px";
+  card.querySelector(".like-count b").textContent = p.likes;
+  likeButton.classList.add("liked");
 
-    document.body.appendChild(heart);
+  // Coração subindo
+  const heart = document.createElement("span");
+  heart.className = "heart-float";
+  heart.textContent = "♥";
 
-    setTimeout(() => heart.remove(), 1000);
+  const rect = likeButton.getBoundingClientRect();
+  heart.style.left = (rect.left + rect.width / 2) + "px";
+  heart.style.top = rect.top + "px";
 
-  } catch (erro) {
-    console.error("Erro ao salvar curtida:", erro);
-    toast("Não foi possível registrar sua curtida. Tente novamente.");
+  document.body.appendChild(heart);
+  setTimeout(() => heart.remove(), 950);
 
-  } finally {
-    btn.disabled = false;
-  }
+  // Enfileira as requisições para evitar conflitos
+  likeQueue = likeQueue.then(async () => {
+    try {
+      const response = await fetch(
+        `/api/products/${p.id}/like`,
+        { method: "POST" }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.sucesso) {
+        throw new Error(data.erro || "Erro ao registrar curtida.");
+      }
+
+      likesPending--;
+
+      // Só sincroniza quando todas as curtidas pendentes terminarem
+      if (likesPending === 0) {
+        p.likes = Number(data.likes) || 0;
+        card.querySelector(".like-count b").textContent = p.likes;
+      }
+
+    } catch (error) {
+      console.error("Erro ao salvar curtida:", error);
+
+      // Desfaz somente a curtida que falhou
+      likesPending--;
+      p.likes = Math.max(0, (Number(p.likes) || 0) - 1);
+
+      card.querySelector(".like-count b").textContent = p.likes;
+
+      if (likesPending === 0) {
+        likeButton.classList.remove("liked");
+      }
+
+      toast("Não foi possível salvar esta curtida. Tente novamente.");
+    }
+  });
 });
+
 
 
 
