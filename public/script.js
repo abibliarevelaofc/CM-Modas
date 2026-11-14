@@ -3680,7 +3680,7 @@ function normalizeCategory(value) {
     }
   });
 
-  // Inicialização
+  // Inicializaçã
   loadPublicBanners();
 
 })();
