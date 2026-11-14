@@ -278,12 +278,13 @@ const storeMovement = (() => {
   }
 
   return {
-    start,
-    stop,
-    checkAdmin,
-    track,
-    getSessionId: () => sessionId
-  };
+  start,
+  stop,
+  checkAdmin,
+  track,
+  trackEvent: track,
+  getSessionId: () => sessionId
+};
 
 })();
 
