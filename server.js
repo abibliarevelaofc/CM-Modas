@@ -205,13 +205,31 @@ app.get("/api/status", (req, res) => {
 // PRODUTOS
 // ========================================
 
-app.get("/api/products", asyncRoute(async (req, res) => {
-  const products = await Product.find()
-    .sort({ createdAt: -1 })
-    .lean();
 
-  res.json(products);
-}));
+app.get("/api/products", async (req, res) => {
+  try {
+    console.log("Buscando produtos...");
+    console.log("Estado MongoDB:", mongoose.connection.readyState);
+
+    const products = await Product.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log("Produtos encontrados:", products.length);
+
+    return res.json(products);
+
+  } catch (erro) {
+    console.error("ERRO EXCLUSIVO NA ROTA PRODUCTS:", erro);
+
+    return res.status(500).json({
+      erro: "Falha ao buscar produtos",
+      detalhe: erro.message,
+      codigo: erro.code || null,
+      nome: erro.name
+    });
+  }
+});
 
 app.post("/api/products", asyncRoute(async (req, res) => {
   const body = req.body || {};
