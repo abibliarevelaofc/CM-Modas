@@ -206,27 +206,39 @@ app.get("/api/status", (req, res) => {
 // ========================================
 
 
-app.get("/api/products", async (req, res) => {
-  try {
-    const products = await Product.find({})
-      .lean();
 
-    console.log(
-      `[PRODUTOS] ${products.length} produtos encontrados no MongoDB`
-    );
+app.get("/api/products", asyncRoute(async (req, res) => {
+  const products = await Product.find({})
+    .select("-colors.image")
+    .lean();
 
-    return res.status(200).json(products);
+  console.log(
+    `[PRODUTOS] ${products.length} produtos carregados sem imagens`
+  );
 
-  } catch (erro) {
-    console.error("ERRO AO BUSCAR PRODUTOS:", erro);
+  res.set("Cache-Control", "no-store");
+  res.status(200).json(products);
+}));
 
-    return res.status(500).json({
-      sucesso: false,
-      erro: "Não foi possível carregar os produtos.",
-      detalhe: erro.message
+
+app.get("/api/products/:id/images", asyncRoute(async (req, res) => {
+  const id = Number(req.params.id);
+
+  const product = await Product.findOne({ id })
+    .select("id colors")
+    .lean();
+
+  if (!product) {
+    return res.status(404).json({
+      erro: "Produto não encontrado."
     });
   }
-});
+
+  res.json({
+    id: product.id,
+    colors: product.colors || []
+  });
+}));
 
 
 app.post("/api/products", asyncRoute(async (req, res) => {
@@ -804,17 +816,26 @@ app.post("/api/installments/:id/payments", asyncRoute(async (req, res) => {
 // DASHBOARD
 // ========================================
 
+
 app.get("/api/dashboard", asyncRoute(async (req, res) => {
   const [
     products,
     sales,
     clients,
-    installments
+    installments,
+    productsCount
   ] = await Promise.all([
-    Product.find().lean(),
+    Product.find()
+      .select("stock cost price")
+      .lean(),
+
     Sale.find().lean(),
+
     Client.countDocuments({ active: true }),
-    Installment.find().lean()
+
+    Installment.find().lean(),
+
+    Product.countDocuments()
   ]);
 
   const revenue = roundMoney(
@@ -875,7 +896,7 @@ app.get("/api/dashboard", asyncRoute(async (req, res) => {
     lucroRealizado: realizedProfit,
     investimentoEstoque: inventoryInvestment,
     lucroPotencialEstoque: potentialProfit,
-    produtosCadastrados: products.length,
+    produtosCadastrados: productsCount,
     unidadesEmEstoque: products.reduce(
       (sum, p) => sum + Number(p.stock || 0),
       0
@@ -889,6 +910,7 @@ app.get("/api/dashboard", asyncRoute(async (req, res) => {
       installments.filter(item => !item.paid).length
   });
 }));
+
 
 // ========================================
 // TRATAMENTO DE ERROS

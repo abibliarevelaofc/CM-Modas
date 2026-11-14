@@ -228,6 +228,58 @@ function goHome(){
 
 // EXIBIÇÃO DOS PRODUTOS
 
+
+// ============================================================
+// CARREGAMENTO DE FOTOS SOB DEMANDA
+// ============================================================
+
+const imageRequests = new Map();
+
+async function loadProductImages(product) {
+  if (!product) return [];
+
+  // Se as imagens já foram carregadas, reutiliza
+  if (product.colors?.some(color => color.image)) {
+    return product.colors;
+  }
+
+  // Evita fazer várias requisições para o mesmo produto
+  if (imageRequests.has(product.id)) {
+    return imageRequests.get(product.id);
+  }
+
+  const request = (async () => {
+    const response = await fetch(
+      `/api/products/${product.id}/images`,
+      { cache: "force-cache" }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.erro || "Erro ao carregar fotografias.");
+    }
+
+    const savedColors = data.colors || [];
+
+    product.colors = (product.colors || []).map((color, index) => ({
+      ...color,
+      image: savedColors[index]?.image || ""
+    }));
+
+    return product.colors;
+  })();
+
+  imageRequests.set(product.id, request);
+
+  try {
+    return await request;
+  } catch (error) {
+    imageRequests.delete(product.id);
+    throw error;
+  }
+}
+
 function render(){
  const list=$("#productList"),q=$("#search").value.trim().toLocaleLowerCase("pt-BR"),sort=$("#sort").value;
 
@@ -257,8 +309,11 @@ function render(){
   card.className="product";
   card.dataset.id=p.id;
 
-  const colors=p.colors?.length?p.colors:[{name:"Principal",image:""}];
-  const first=colors[0];
+  let colors = p.colors?.length
+  ? p.colors
+  : [{ name: "Principal", image: "" }];
+
+let first = colors[0];
 
   card.innerHTML=`
    <div class="product-top">
@@ -344,13 +399,31 @@ function updateWhatsapp(){
 
 
 
-  function selectColor(i){
-   chosen=colors[i];
-   img.src=chosen.image||"";
-   label.textContent=chosen.name;
-   thumbs.forEach((b,j)=>b.classList.toggle("active",j===i));
-   updateWhatsapp();
+  async function selectColor(i) {
+  try {
+    colors = await loadProductImages(p);
+
+    chosen = colors[i] || colors[0];
+
+    img.src = chosen.image || "";
+    label.textContent = chosen.name;
+
+    thumbs.forEach((button, index) => {
+      button.classList.toggle("active", index === i);
+
+      const thumbImage = button.querySelector("img");
+      if (thumbImage) {
+        thumbImage.src = colors[index]?.image || "";
+      }
+    });
+
+    updateWhatsapp();
+
+  } catch (error) {
+    console.error("Erro ao carregar fotos:", error);
+    toast("Não foi possível carregar as fotos desta peça.");
   }
+}
 
   thumbs.forEach((b,i)=>b.addEventListener("click",()=>selectColor(i)));
 
@@ -457,6 +530,57 @@ card.querySelector(".photo-like-btn").addEventListener("click", async e => {
   });
 
   list.appendChild(card);
+
+  // Carrega as fotos somente quando o produto se aproxima da tela
+if (window.IntersectionObserver) {
+  const observer = new IntersectionObserver(async entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+
+      observer.unobserve(entry.target);
+
+      try {
+        colors = await loadProductImages(p);
+
+        if (!card.isConnected) continue;
+
+        first = colors[0] || { name: "Principal", image: "" };
+
+        chosen = first;
+
+        img.src = first.image || "";
+        label.textContent = first.name;
+
+        thumbs.forEach((button, index) => {
+          const thumbImage = button.querySelector("img");
+
+          if (thumbImage) {
+            thumbImage.src = colors[index]?.image || "";
+          }
+        });
+
+        updateWhatsapp();
+
+      } catch (error) {
+        console.error("Erro ao carregar fotos do produto:", error);
+      }
+    }
+  }, {
+    rootMargin: "300px"
+  });
+
+  observer.observe(card);
+} else {
+  loadProductImages(p).then(loadedColors => {
+    colors = loadedColors;
+    first = colors[0] || first;
+    chosen = first;
+    img.src = first.image || "";
+    label.textContent = first.name;
+    updateWhatsapp();
+  }).catch(console.error);
+}
+
  });
 }
 
@@ -618,9 +742,17 @@ $("#addColor").onclick=()=>{
  renderColorRows();
 };
 // SALVAR, EDITAR E EXCLUIR
-function editProduct(id) {
+async function editProduct(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
+
+  try {
+  await loadProductImages(p);
+} catch (error) {
+  console.error("Erro ao carregar fotos para edição:", error);
+  toast("Não foi possível carregar as fotos deste produto.");
+  return;
+}
 
   editingId = id;
 
