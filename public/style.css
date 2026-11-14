@@ -5177,3 +5177,61 @@ footer strong
     font-size: 11px;
   }
 }
+
+
+/* =========================================
+   CM MODAS — LOADING DAS FOTOGRAFIAS
+========================================= */
+
+.photo-window {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #eeeae2, #f8f6f1, #e9e3d8);
+}
+
+.photo-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 13px;
+  background: linear-gradient(135deg, #eeeae2, #f8f6f1, #e9e3d8);
+}
+
+.photo-loading .photo-loader {
+  display: flex;
+}
+
+.photo-spinner {
+  width: 35px;
+  height: 35px;
+  border: 3px solid rgba(155, 125, 75, .20);
+  border-top-color: #a88954;
+  border-radius: 50%;
+  animation: cmPhotoSpin .8s linear infinite;
+}
+
+.photo-loader small {
+  color: #887653;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.main-photo {
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+
+.main-photo.photo-loaded {
+  opacity: 1;
+}
+
+@keyframes cmPhotoSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

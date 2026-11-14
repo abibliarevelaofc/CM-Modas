@@ -325,7 +325,11 @@ let first = colors[0];
    </div>
 
    <div class="photo-row">
-    <div class="photo-window">
+    <div class="photo-window photo-loading">
+  <div class="photo-loader">
+    <span class="photo-spinner"></span>
+    <small>CARREGANDO FOTO</small>
+  </div>
      <img class="main-photo" src="${safeText(first.image||"")}" alt="${safeText(p.name)}" loading="lazy">
      <span class="photo-ref-tag">FOTO DE REFERÊNCIA</span>
     <button class="photo-like-btn" type="button" aria-label="Curtir peça">
@@ -380,6 +384,37 @@ let first = colors[0];
   const img=card.querySelector(".main-photo");
   const label=card.querySelector(".current-color");
   const thumbs=[...card.querySelectorAll(".color-thumb")];
+
+const photoWindow = card.querySelector(".photo-window");
+
+function setMainPhoto(src) {
+  photoWindow.classList.add("photo-loading");
+  img.classList.remove("photo-loaded");
+
+  img.onload = () => {
+    photoWindow.classList.remove("photo-loading");
+    img.classList.add("photo-loaded");
+  };
+
+  img.onerror = () => {
+    photoWindow.classList.remove("photo-loading");
+    img.classList.remove("photo-loaded");
+  };
+
+  if (!src) {
+    img.removeAttribute("src");
+    photoWindow.classList.remove("photo-loading");
+    return;
+  }
+
+  img.src = src;
+
+  if (img.complete && img.naturalWidth > 0) {
+    photoWindow.classList.remove("photo-loading");
+    img.classList.add("photo-loaded");
+  }
+}
+
   let chosen=first;
 let selectedSize="";
   const whatsapp=card.querySelector(".whatsapp-btn");
@@ -405,7 +440,7 @@ function updateWhatsapp(){
 
     chosen = colors[i] || colors[0];
 
-    img.src = chosen.image || "";
+    setMainPhoto(chosen.image);
     label.textContent = chosen.name;
 
     thumbs.forEach((button, index) => {
@@ -548,7 +583,7 @@ if (window.IntersectionObserver) {
 
         chosen = first;
 
-        img.src = first.image || "";
+        setMainPhoto(first.image);
         label.textContent = first.name;
 
         thumbs.forEach((button, index) => {
@@ -575,7 +610,7 @@ if (window.IntersectionObserver) {
     colors = loadedColors;
     first = colors[0] || first;
     chosen = first;
-    img.src = first.image || "";
+    setMainPhoto(first.image);
     label.textContent = first.name;
     updateWhatsapp();
   }).catch(console.error);
