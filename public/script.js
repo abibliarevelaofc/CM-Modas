@@ -1105,8 +1105,12 @@ $("#importFile").onchange=e=>{
  e.target.value="";
 };
 
-$("#year").textContent=new Date().getFullYear();
+$("#year").textContent = new Date().getFullYear();
 
+// INICIALIZA AS ABAS DA COLEÇÃO MASCULINA
+renderCategoryTabs();
+
+// CARREGA OS PRODUTOS DO MONGODB
 initializeCatalog();
 
 
