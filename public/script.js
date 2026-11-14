@@ -51,42 +51,82 @@ function persist(){
 }
 
 // CONEXÃO COM A API
-async function fetchProducts(){
- const response=await fetch("/api/products");
- if(!response.ok)throw new Error("Erro ao buscar produtos.");
- return await response.json();
-}
 
-async function initializeCatalog(){
- try{
-  let remoteProducts=await fetchProducts();
+async function fetchProducts() {
+  const response = await fetch("/api/products", {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
+    },
+    cache: "no-store"
+  });
 
-  if(remoteProducts.length===0){
-   const oldProducts=loadProducts();
+  const data = await response.json();
 
-   for(const product of oldProducts){
-    const response=await fetch("/api/products",{
-     method:"POST",
-     headers:{"Content-Type":"application/json"},
-     body:JSON.stringify(product)
-    });
-
-    if(!response.ok)throw new Error("Erro ao importar produtos antigos.");
-   }
-
-   remoteProducts=await fetchProducts();
+  if (!response.ok) {
+    console.error("Erro da API:", data);
+    throw new Error(data.detalhe || data.erro || "Erro ao buscar produtos.");
   }
 
-  products=remoteProducts;
-  render();
+  if (!Array.isArray(data)) {
+    console.error("Resposta inesperada:", data);
+    throw new Error("A API não retornou uma lista de produtos.");
+  }
 
-  if(admin)renderAdminList();
+  return data;
+}
 
-  console.log("Catálogo carregado do MongoDB!");
- }catch(error){
-  console.error(error);
-  toast("Erro ao carregar o catálogo. Verifique o servidor.");
- }
+
+async function initializeCatalog() {
+  try {
+    let remoteProducts = await fetchProducts();
+
+    // Se o MongoDB estiver vazio, importa os produtos antigos
+    if (remoteProducts.length === 0) {
+      const oldProducts = loadProducts();
+
+      for (const product of oldProducts) {
+        const response = await fetch("/api/products", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(product)
+        });
+
+        if (!response.ok) {
+          throw new Error("Erro ao importar produtos antigos.");
+        }
+      }
+
+      // Busca novamente os produtos depois da importação
+      remoteProducts = await fetchProducts();
+    }
+
+    // Atualiza a lista principal do catálogo
+    products = remoteProducts;
+
+    // Compartilha os produtos com o painel administrativo
+    window.cmCatalogProducts = remoteProducts;
+    window.cmProducts = remoteProducts;
+    window.products = remoteProducts;
+
+    // Atualiza a tela
+    render();
+
+    if (admin) {
+      renderAdminList();
+    }
+
+    console.log(
+      `Catálogo carregado do MongoDB! ${remoteProducts.length} produtos encontrados.`
+    );
+
+  } catch (error) {
+    console.error("Erro ao inicializar catálogo:", error);
+
+    toast("Erro ao carregar o catálogo. Verifique o servidor.");
+  }
 }
 
 function toast(t){
@@ -3680,7 +3720,7 @@ function normalizeCategory(value) {
     }
   });
 
-  // Inicializaçã
+  // Inicialização
   loadPublicBanners();
 
 })();

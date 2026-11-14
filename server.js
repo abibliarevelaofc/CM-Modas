@@ -205,22 +205,30 @@ app.get("/api/status", (req, res) => {
 // PRODUTOS
 // ========================================
 
+
 app.get("/api/products", async (req, res) => {
   try {
-    const products = await Product.collection
-      .find({})
+    const products = await Product.find({})
       .sort({ createdAt: -1 })
-      .toArray();
+      .lean();
+
+    console.log(
+      `[PRODUTOS] ${products.length} produtos encontrados no MongoDB`
+    );
 
     return res.status(200).json(products);
+
   } catch (erro) {
-    console.error("Erro ao listar produtos:", erro);
+    console.error("ERRO AO BUSCAR PRODUTOS:", erro);
 
     return res.status(500).json({
-      erro: "Não foi possível carregar os produtos."
+      sucesso: false,
+      erro: "Não foi possível carregar os produtos.",
+      detalhe: erro.message
     });
   }
 });
+
 
 app.post("/api/products", asyncRoute(async (req, res) => {
   const body = req.body || {};
