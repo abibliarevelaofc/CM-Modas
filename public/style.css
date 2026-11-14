@@ -5178,27 +5178,28 @@ footer strong
   }
 }
 
-
 /* =========================================
-   CM MODAS — LOADING DAS FOTOGRAFIAS
+   CM MODAS — LOADING PRETO E DOURADO
 ========================================= */
 
 .photo-window {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #eeeae2, #f8f6f1, #e9e3d8);
+  background: #080808 !important;
+  border: none !important;
 }
 
 .photo-loader {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 10;
   display: none;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 13px;
-  background: linear-gradient(135deg, #eeeae2, #f8f6f1, #e9e3d8);
+  gap: 16px;
+  background: #080808;
+  border: none !important;
 }
 
 .photo-loading .photo-loader {
@@ -5206,19 +5207,22 @@ footer strong
 }
 
 .photo-spinner {
-  width: 35px;
-  height: 35px;
-  border: 3px solid rgba(155, 125, 75, .20);
-  border-top-color: #a88954;
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(212, 175, 55, .15);
+  border-top-color: #d4af37;
+  border-right-color: #d4af37;
   border-radius: 50%;
   animation: cmPhotoSpin .8s linear infinite;
+  box-shadow: 0 0 15px rgba(212, 175, 55, .12);
 }
 
 .photo-loader small {
-  color: #887653;
-  font-size: 9px;
+  color: #d4af37;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
 }
 
 .main-photo {
