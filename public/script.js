@@ -236,14 +236,27 @@ function goHome(){
 const imageRequests = new Map();
 
 async function loadProductImages(product) {
-  if (!product) return [];
-
-  // Se as imagens já foram carregadas, reutiliza
-  if (product.colors?.some(color => color.image)) {
-    return product.colors;
+  if (!product) {
+    throw new Error("Produto não encontrado.");
   }
 
-  // Evita fazer várias requisições para o mesmo produto
+  const existingColors = Array.isArray(product.colors)
+    ? product.colors
+    : [];
+
+  // Só reutiliza se TODAS as fotos estiverem carregadas
+  const allImagesLoaded =
+    existingColors.length > 0 &&
+    existingColors.every(color =>
+      color &&
+      typeof color.image === "string" &&
+      color.image.trim() !== ""
+    );
+
+  if (allImagesLoaded) {
+    return existingColors;
+  }
+
   if (imageRequests.has(product.id)) {
     return imageRequests.get(product.id);
   }
@@ -251,23 +264,43 @@ async function loadProductImages(product) {
   const request = (async () => {
     const response = await fetch(
       `/api/products/${product.id}/images`,
-      { cache: "force-cache" }
+      { cache: "no-store" }
     );
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.erro || "Erro ao carregar fotografias.");
+      throw new Error(
+        data.erro || "Erro ao carregar fotografias."
+      );
     }
 
-    const savedColors = data.colors || [];
+    if (!Array.isArray(data.colors) || !data.colors.length) {
+      throw new Error("Nenhuma foto foi retornada pelo banco.");
+    }
 
-    product.colors = (product.colors || []).map((color, index) => ({
-      ...color,
-      image: savedColors[index]?.image || ""
+    const loadedColors = data.colors.map((savedColor, index) => ({
+      name: String(
+        savedColor?.name ||
+        existingColors[index]?.name ||
+        "Cor"
+      ),
+      image: typeof savedColor?.image === "string"
+        ? savedColor.image
+        : ""
     }));
 
-    return product.colors;
+    const missingImage = loadedColors.some(
+      color => !color.image.trim()
+    );
+
+    if (missingImage) {
+      throw new Error("Uma ou mais fotos não foram carregadas.");
+    }
+
+    product.colors = loadedColors;
+
+    return loadedColors;
   })();
 
   imageRequests.set(product.id, request);
@@ -837,24 +870,41 @@ $("#addColor").onclick=()=>{
  renderColorRows();
 };
 // SALVAR, EDITAR E EXCLUIR
+
 async function editProduct(id) {
   const p = products.find(x => x.id === id);
+
   if (!p) return;
 
   try {
-  await loadProductImages(p);
-} catch (error) {
-  console.error("Erro ao carregar fotos para edição:", error);
-  toast("Não foi possível carregar as fotos deste produto.");
-  return;
-}
+    const loadedColors = await loadProductImages(p);
+
+    if (
+      !Array.isArray(loadedColors) ||
+      !loadedColors.length ||
+      loadedColors.some(c =>
+        !c || typeof c.image !== "string" || !c.image.trim()
+      )
+    ) {
+      throw new Error("As fotos das cores estão incompletas.");
+    }
+
+    currentColors = loadedColors.map(c => ({
+      name: String(c.name || "Cor"),
+      image: c.image
+    }));
+
+  } catch (error) {
+    console.error("Erro ao carregar fotos para edição:", error);
+    toast("Não foi possível carregar todas as fotos. Tente novamente.");
+    return;
+  }
 
   editingId = id;
 
   $("#pName").value = p.name || "";
   $("#pGender").value = p.gender || "masculino";
 
-  // Atualiza as opções antes de selecionar a categoria salva
   carregarCategoriasCadastro();
   $("#pCategory").value = p.category || "";
 
@@ -862,25 +912,14 @@ async function editProduct(id) {
   $("#pCost").value = Number(p.cost) || 0;
   $("#pStock").value = Number(p.stock) || 0;
 
-  // Marca se a peça pertence aos Destaques
   $("#pHighlight").checked =
     (p.label || "").toLowerCase().includes("destaque");
 
   $("#pSizes").value = (p.sizes || []).join(", ");
   $("#pDescription").value = p.description || "";
 
-  // Recupera as cores e fotografias já cadastradas
-  currentColors = (p.colors || []).map(c => ({
-    ...c
-  }));
-
-  if (!currentColors.length) {
-    currentColors = [{ name: "Principal", image: "" }];
-  }
-
   $("#deleteProduct").hidden = false;
 
-  // Exibe as cores e fotos no editor
   renderColorRows();
 
   $("#pName").scrollIntoView({
@@ -888,6 +927,7 @@ async function editProduct(id) {
     block: "center"
   });
 }
+
 
 $("#newProduct").onclick=()=>{
  clearForm();

@@ -284,6 +284,7 @@ app.post("/api/products", asyncRoute(async (req, res) => {
   });
 }));
 
+
 app.put("/api/products/:id", asyncRoute(async (req, res) => {
   const id = Number(req.params.id);
 
@@ -292,6 +293,8 @@ app.put("/api/products/:id", asyncRoute(async (req, res) => {
       erro: "ID do produto inválido."
     });
   }
+
+  const body = req.body || {};
 
   const allowed = [
     "gender",
@@ -303,15 +306,24 @@ app.put("/api/products/:id", asyncRoute(async (req, res) => {
     "stock",
     "sizes",
     "description",
-    "likes",
-    "colors"
+    "likes"
   ];
 
   const update = {};
 
   for (const key of allowed) {
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
-      update[key] = req.body[key];
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      update[key] = body[key];
+    }
+  }
+
+  if (update.name !== undefined) {
+    update.name = String(update.name).trim();
+
+    if (!update.name) {
+      return res.status(400).json({
+        erro: "Informe o nome do produto."
+      });
     }
   }
 
@@ -331,6 +343,28 @@ app.put("/api/products/:id", asyncRoute(async (req, res) => {
     update.likes = Math.max(0, Math.floor(toNumber(update.likes)));
   }
 
+  // SÓ ATUALIZA AS FOTOS SE TODAS ESTIVEREM PRESENTES E VÁLIDAS
+  if (Array.isArray(body.colors) && body.colors.length > 0) {
+    const validColors = body.colors.every(color =>
+      color &&
+      typeof color === "object" &&
+      typeof color.image === "string" &&
+      color.image.trim() !== ""
+    );
+
+    if (!validColors) {
+      return res.status(400).json({
+        erro: "As fotos das cores não foram carregadas corretamente. As fotos originais foram preservadas."
+      });
+    }
+
+    update.colors = body.colors.map(color => ({
+      name: String(color.name || "Cor").trim() || "Cor",
+      image: color.image.trim()
+    }));
+  }
+
+  // Se colors vier vazio ou ausente, as fotos existentes não serão alteradas.
   const product = await Product.findOneAndUpdate(
     { id },
     { $set: update },
@@ -348,6 +382,7 @@ app.put("/api/products/:id", asyncRoute(async (req, res) => {
     produto: product
   });
 }));
+
 
 app.delete("/api/products/:id", asyncRoute(async (req, res) => {
   const id = Number(req.params.id);
