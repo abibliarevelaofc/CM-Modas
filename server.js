@@ -213,9 +213,6 @@ app.get("/api/products", asyncRoute(async (req, res) => {
   res.json(products);
 }));
 
-
-
-
 app.post("/api/products", asyncRoute(async (req, res) => {
   const body = req.body || {};
 
