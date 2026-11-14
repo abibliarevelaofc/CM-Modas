@@ -157,7 +157,8 @@ const storeMovement = (() => {
   }
 
   let heartbeatTimer = null;
-  let trackingActive = false;
+let trackingActive = false;
+let lastHeartbeatAt = 0;
 
   function isAdminOpen() {
     const panel = document.querySelector("#adminBg");
@@ -170,40 +171,60 @@ const storeMovement = (() => {
   }
 
   async function heartbeat() {
-    if (!trackingActive || isAdminOpen()) {
-      stop();
-      return;
-    }
-
-    try {
-      await fetch("/api/store-movement/heartbeat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          sessionId,
-          source: "catalog"
-        }),
-        keepalive: true
-      });
-
-    } catch (error) {
-      console.warn("Movimento da loja:", error);
-    }
+  if (!trackingActive || isAdminOpen()) {
+    stop();
+    return;
   }
+
+  const agora = Date.now();
+
+  const segundosAtivos = lastHeartbeatAt
+    ? Math.min(
+        45,
+        Math.floor((agora - lastHeartbeatAt) / 1000)
+      )
+    : 0;
+
+  lastHeartbeatAt = agora;
+
+  try {
+    const response = await fetch("/api/store-movement/heartbeat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId,
+        source: "catalog",
+        activeSeconds: segundosAtivos
+      }),
+      keepalive: true
+    });
+
+    if (!response.ok) {
+      console.warn(
+        "Erro ao registrar tempo da loja:",
+        response.status
+      );
+    }
+
+  } catch (error) {
+    console.warn("Movimento da loja:", error);
+  }
+}
 
   function start() {
-    if (trackingActive || isAdminOpen()) return;
+  if (trackingActive || isAdminOpen()) return;
 
-    trackingActive = true;
+  trackingActive = true;
+  lastHeartbeatAt = Date.now();
 
+  heartbeat();
+
+  heartbeatTimer = setInterval(() => {
     heartbeat();
-
-    heartbeatTimer = setInterval(() => {
-      heartbeat();
-    }, 25000);
-  }
+  }, 25000);
+}
 
   function stop() {
     trackingActive = false;
