@@ -144,6 +144,7 @@ function safeText(v){
 // CM MODAS — MONITORAMENTO DO CATÁLOGO PÚBLICO
 // ============================================================
 
+
 const storeMovement = (() => {
 
   let sessionId = sessionStorage.getItem("cm_store_session");
@@ -157,8 +158,8 @@ const storeMovement = (() => {
   }
 
   let heartbeatTimer = null;
-let trackingActive = false;
-let lastHeartbeatAt = 0;
+  let trackingActive = false;
+  let lastHeartbeatAt = 0;
 
   function isAdminOpen() {
     const panel = document.querySelector("#adminBg");
@@ -170,25 +171,8 @@ let lastHeartbeatAt = 0;
     );
   }
 
-  async function heartbeat() {
-  if (!trackingActive || isAdminOpen()) {
-    stop();
-    return;
-  }
-
-  const agora = Date.now();
-
-  const segundosAtivos = lastHeartbeatAt
-    ? Math.min(
-        45,
-        Math.floor((agora - lastHeartbeatAt) / 1000)
-      )
-    : 0;
-
-  lastHeartbeatAt = agora;
-
-  try {
-    const response = await fetch("/api/store-movement/heartbeat", {
+  function sendHeartbeat(seconds = 0) {
+    fetch("/api/store-movement/heartbeat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -196,54 +180,85 @@ let lastHeartbeatAt = 0;
       body: JSON.stringify({
         sessionId,
         source: "catalog",
-        activeSeconds: segundosAtivos
+        activeSeconds: seconds
       }),
       keepalive: true
+    }).catch(error => {
+      console.warn("Movimento da loja:", error);
     });
+  }
 
-    if (!response.ok) {
-      console.warn(
-        "Erro ao registrar tempo da loja:",
-        response.status
-      );
+  function heartbeat() {
+    if (
+      !trackingActive ||
+      document.hidden ||
+      isAdminOpen()
+    ) {
+      stop();
+      return;
     }
 
-  } catch (error) {
-    console.warn("Movimento da loja:", error);
+    const agora = Date.now();
+
+    const segundosAtivos = Math.min(
+      45,
+      Math.floor((agora - lastHeartbeatAt) / 1000)
+    );
+
+    lastHeartbeatAt = agora;
+
+    sendHeartbeat(segundosAtivos);
   }
-}
 
   function start() {
-  if (trackingActive || isAdminOpen()) return;
+    if (
+      trackingActive ||
+      document.hidden ||
+      isAdminOpen()
+    ) return;
 
-  trackingActive = true;
-  lastHeartbeatAt = Date.now();
+    trackingActive = true;
+    lastHeartbeatAt = Date.now();
 
-  heartbeat();
+    // Registra o visitante imediatamente
+    sendHeartbeat(0);
 
-  heartbeatTimer = setInterval(() => {
-    heartbeat();
-  }, 25000);
-}
+    // Atualiza o tempo a cada 10 segundos
+    heartbeatTimer = setInterval(heartbeat, 10000);
+  }
 
   function stop() {
+    if (!trackingActive) return;
+
+    // Salva o tempo restante antes de parar
+    const agora = Date.now();
+
+    const segundosAtivos = Math.min(
+      45,
+      Math.floor((agora - lastHeartbeatAt) / 1000)
+    );
+
     trackingActive = false;
+    lastHeartbeatAt = 0;
 
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
     }
+
+    if (segundosAtivos > 0) {
+      sendHeartbeat(segundosAtivos);
+    }
   }
 
   function checkAdmin() {
-    if (isAdminOpen()) {
+    if (isAdminOpen() || document.hidden) {
       stop();
     } else {
       start();
     }
   }
 
-  // Detecta a abertura e o fechamento do painel administrativo
   const adminPanel = document.querySelector("#adminBg");
 
   if (adminPanel) {
@@ -255,7 +270,6 @@ let lastHeartbeatAt = 0;
     });
   }
 
-  // Também detecta mudanças no modo administrativo
   const bodyObserver = new MutationObserver(checkAdmin);
 
   bodyObserver.observe(document.body, {
@@ -263,7 +277,6 @@ let lastHeartbeatAt = 0;
     attributeFilter: ["class"]
   });
 
-  // Ao voltar para a aba, verifica se pode continuar contando
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stop();
@@ -272,14 +285,16 @@ let lastHeartbeatAt = 0;
     }
   });
 
-  // Para o monitoramento ao sair da página
   window.addEventListener("pagehide", stop);
 
-  // Inicia somente se o painel administrativo estiver fechado
   checkAdmin();
 
-    function track(type, productId = null) {
-    if (!trackingActive || isAdminOpen()) return;
+  function track(type, productId = null) {
+    if (
+      !trackingActive ||
+      document.hidden ||
+      isAdminOpen()
+    ) return;
 
     fetch("/api/store-movement/event", {
       method: "POST",
@@ -299,15 +314,16 @@ let lastHeartbeatAt = 0;
   }
 
   return {
-  start,
-  stop,
-  checkAdmin,
-  track,
-  trackEvent: track,
-  getSessionId: () => sessionId
-};
+    start,
+    stop,
+    checkAdmin,
+    track,
+    trackEvent: track,
+    getSessionId: () => sessionId
+  };
 
 })();
+
 
 // NAVEGAÇÃO
 const categoryGroups = {
@@ -1724,17 +1740,30 @@ async function loadMovementStats() {
     return Number(value) || 0;
   };
 
-  const formatTime = seconds => {
-    seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  
+const formatTime = seconds => {
+  seconds = Math.max(0, Math.floor(Number(seconds) || 0));
 
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
 
-    if (hours > 0) return `${hours}h ${minutes}min`;
-    if (minutes > 0) return `${minutes}min ${secs}s`;
-    return `${secs}s`;
-  };
+  const partes = [];
+
+  if (hours > 0) {
+    partes.push(`${hours} ${hours === 1 ? "hora" : "horas"}`);
+  }
+
+  if (minutes > 0) {
+    partes.push(`${minutes} ${minutes === 1 ? "minuto" : "minutos"}`);
+  }
+
+  if (secs > 0 || partes.length === 0) {
+    partes.push(`${secs} ${secs === 1 ? "segundo" : "segundos"}`);
+  }
+
+  return partes.join(" e ");
+};
 
   try {
     setText(elements.updated, "Carregando dados...");
@@ -1765,8 +1794,8 @@ async function loadMovementStats() {
     setText(elements.whatsapp, number(data.whatsappClicks, data.whatsapp, data.whatsappCount));
     setText(elements.cart, number(data.cartClicks, data.cart, data.cartCount));
     setText(elements.totalTime, formatTime(
-      number(data.totalSeconds, data.totalTime, data.totalDuration)
-    ));
+  number(data.activeSeconds, data.totalSeconds, data.totalTime, data.totalDuration)
+));
 
     setText(elements.updated, "Atualizado às " +
       new Date().toLocaleTimeString("pt-BR", {
