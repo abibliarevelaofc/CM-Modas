@@ -571,13 +571,16 @@ let first = colors[0];
      </div>
     </div>
     <div class="color-rail">
-     ${colors.map((c,i)=>`
-      <button class="color-thumb ${i===0?"active":""}" data-index="${i}" aria-label="Ver cor ${safeText(c.name)}">
-       <img src="${safeText(c.image||"")}" alt="">
-       <small>${safeText(c.name)}</small>
-      </button>
-     `).join("")}
-    </div>
+ ${colors.map((c,i)=>`
+  <button class="color-thumb color-thumb-loading ${i===0?"active":""}" data-index="${i}" aria-label="Ver cor ${safeText(c.name)}">
+   <span class="color-thumb-loader">
+    <span class="color-thumb-spinner"></span>
+   </span>
+   <img src="${safeText(c.image||"")}" alt="">
+   <small>${safeText(c.name)}</small>
+  </button>
+ `).join("")}
+</div>
    </div>
 
    <div class="product-bottom">
@@ -601,6 +604,30 @@ let first = colors[0];
   const img=card.querySelector(".main-photo");
   const label=card.querySelector(".current-color");
   const thumbs=[...card.querySelectorAll(".color-thumb")];
+  // LOADING INDIVIDUAL DAS MINIATURAS DE CORES
+thumbs.forEach(button => {
+  const thumbImage = button.querySelector("img");
+
+  if (!thumbImage) return;
+
+  const loaded = () => {
+    button.classList.remove("color-thumb-loading");
+  };
+
+  const failed = () => {
+    button.classList.remove("color-thumb-loading");
+    button.classList.add("color-thumb-error");
+  };
+
+  thumbImage.addEventListener("load", loaded);
+  thumbImage.addEventListener("error", failed);
+
+  if (thumbImage.complete && thumbImage.naturalWidth > 0) {
+    loaded();
+  } else {
+    button.classList.add("color-thumb-loading");
+  }
+});
 
 const photoWindow = card.querySelector(".photo-window");
 
@@ -665,10 +692,15 @@ whatsapp.addEventListener("click", () => {
     thumbs.forEach((button, index) => {
       button.classList.toggle("active", index === i);
 
-      const thumbImage = button.querySelector("img");
-      if (thumbImage) {
-        thumbImage.src = colors[index]?.image || "";
-      }
+     const thumbImage = button.querySelector("img");
+if (thumbImage) {
+  button.classList.remove("color-thumb-error");
+
+  if (colors[index]?.image) {
+    button.classList.add("color-thumb-loading");
+    thumbImage.src = colors[index].image;
+  }
+}
     });
 
     updateWhatsapp();
@@ -870,9 +902,14 @@ if (window.IntersectionObserver) {
         thumbs.forEach((button, index) => {
           const thumbImage = button.querySelector("img");
 
-          if (thumbImage) {
-            thumbImage.src = colors[index]?.image || "";
-          }
+if (thumbImage) {
+  button.classList.remove("color-thumb-error");
+
+  if (colors[index]?.image) {
+    button.classList.add("color-thumb-loading");
+    thumbImage.src = colors[index].image;
+  }
+}
         });
 
         updateWhatsapp();
