@@ -3311,27 +3311,32 @@ document.querySelectorAll('input[name="saleType"]')
     });
   });
 
-/* ATUALIZAR ESTOQUE NO CATÁLOGO */
+/* ATUALIZAR ESTOQUE NO MONGODB */
 async function saveProductStock(p){
-  const payload = {
-    ...p,
-    stock: localStock(p),
-    cost: localCost(p)
-  };
 
-  const response = await fetch("/api/products/" + p.id, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await fetch(
+    `/api/products/${encodeURIComponent(p.id)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        stock: Number(localStock(p)),
+        cost: Number(localCost(p))
+      })
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
 
   if(!response.ok){
     throw new Error(
-      "Não foi possível atualizar o estoque de " + p.name
+      data.erro || "Erro ao atualizar estoque."
     );
   }
+
+  return data;
 }
 
 /* REGISTRAR VENDA */
