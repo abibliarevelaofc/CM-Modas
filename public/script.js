@@ -4555,3 +4555,73 @@ if ("serviceWorker" in navigator) {
       });
   });
 }
+
+
+/* =========================================
+   CM MODAS — SISTEMA DE MÚSICA AMBIENTE
+========================================= */
+
+(() => {
+  const music = document.getElementById("backgroundMusic");
+  const toggle = document.getElementById("musicToggle");
+  const toggleText = document.getElementById("musicToggleText");
+
+  if (!music || !toggle || !toggleText) return;
+
+  music.loop = true;
+  music.volume = 0.20;
+
+  function updateMusicButton() {
+    const playing = !music.paused;
+
+    toggle.classList.toggle("playing", playing);
+    toggle.setAttribute("aria-pressed", String(playing));
+    toggle.setAttribute(
+      "aria-label",
+      playing ? "Desativar música" : "Ativar música"
+    );
+
+    toggleText.textContent = playing
+      ? "MÚSICA LIGADA"
+      : "ATIVAR SOM";
+  }
+
+  async function playMusic() {
+    try {
+      await music.play();
+      updateMusicButton();
+    } catch (error) {
+      updateMusicButton();
+    }
+  }
+
+  function pauseMusic() {
+    music.pause();
+    updateMusicButton();
+  }
+
+  toggle.addEventListener("click", () => {
+    if (music.paused) {
+      playMusic();
+    } else {
+      pauseMusic();
+    }
+  });
+
+  // Inicia a música na primeira interação fora do botão.
+  function startAfterInteraction(event) {
+    if (event.target.closest("#musicToggle")) return;
+
+    if (music.paused) {
+      playMusic();
+    }
+  }
+
+  document.addEventListener("pointerdown", startAfterInteraction);
+  document.addEventListener("keydown", startAfterInteraction);
+
+  music.addEventListener("play", updateMusicButton);
+  music.addEventListener("pause", updateMusicButton);
+
+  updateMusicButton();
+})();

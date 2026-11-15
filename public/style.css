@@ -5886,3 +5886,77 @@ footer strong
   font-weight: 800;
   letter-spacing: .5px;
 }
+
+
+
+/* =========================================
+   CM MODAS — CONTROLE DE MÚSICA
+========================================= */
+
+.music-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 20px;
+  z-index: 9998;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  min-height: 43px;
+  padding: 0 15px;
+
+  border: 1px solid rgba(221,183,105,.55);
+  border-radius: 30px;
+
+  background: linear-gradient(135deg,#21190e,#090909);
+  color: #e8c77f;
+
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+
+  box-shadow:
+    0 5px 20px rgba(0,0,0,.45),
+    inset 0 0 10px rgba(212,175,55,.08);
+
+  cursor: pointer;
+  transition: .25s ease;
+}
+
+.music-toggle-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.music-toggle:hover {
+  border-color: #f2d28b;
+  transform: translateY(-2px);
+}
+
+.music-toggle.playing {
+  background: linear-gradient(135deg,#3a2b13,#171008);
+  border-color: #e8c77f;
+  box-shadow: 0 0 15px rgba(212,175,55,.16);
+}
+
+.music-toggle.playing .music-toggle-icon {
+  animation: musicPulse 1s ease-in-out infinite;
+}
+
+@keyframes musicPulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+@media(max-width:480px) {
+  .music-toggle {
+    right: 12px;
+    bottom: 14px;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 8px;
+  }
+}
