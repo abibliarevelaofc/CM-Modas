@@ -4420,3 +4420,90 @@ function normalizeCategory(value) {
   loadPublicBanners();
 
 })();
+
+// ==========================================
+// CM MODAS — INSTALAÇÃO PWA
+// ==========================================
+
+let deferredInstallPrompt = null;
+
+const installAppBtn = document.getElementById("installAppBtn");
+const installAppBanner = document.getElementById("installAppBanner");
+
+// Detectar se já está instalado
+function isAppInstalled() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true;
+}
+
+// Esconder botão se já estiver instalado
+if (isAppInstalled()) {
+  installAppBanner.style.display = "none";
+}
+
+// Detectar instalação disponível no Android
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+
+  deferredInstallPrompt = event;
+
+  installAppBanner.style.display = "flex";
+});
+
+// Clicar para instalar
+installAppBtn.addEventListener("click", async () => {
+
+  if (deferredInstallPrompt) {
+
+    deferredInstallPrompt.prompt();
+
+    const result = await deferredInstallPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      installAppBanner.style.display = "none";
+    }
+
+    deferredInstallPrompt = null;
+
+    return;
+  }
+
+  // Orientação para iPhone
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isIOS) {
+    alert(
+      "Para instalar a CM MODAS no seu iPhone:\n\n" +
+      "1. Toque no botão Compartilhar do Safari.\n" +
+      "2. Escolha 'Adicionar à Tela de Início'.\n" +
+      "3. Toque em Adicionar.\n\n" +
+      "Pronto! O catálogo estará na tela inicial."
+    );
+
+    return;
+  }
+
+  // Orientação para navegadores sem prompt disponível
+  alert(
+    "Para instalar a CM MODAS:\n\n" +
+    "Abra o menu do navegador e procure a opção " +
+    "'Instalar aplicativo' ou 'Adicionar à tela inicial'."
+  );
+
+});
+
+// Detectar instalação concluída
+window.addEventListener("appinstalled", () => {
+  installAppBanner.style.display = "none";
+  deferredInstallPrompt = null;
+});
+
+// Registrar Service Worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .catch(error => {
+        console.error("Erro ao registrar aplicativo:", error);
+      });
+  });
+}
