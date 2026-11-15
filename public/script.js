@@ -4557,7 +4557,6 @@ if ("serviceWorker" in navigator) {
 }
 
 
-
 /* =========================================
    CM MODAS — SISTEMA DE MÚSICA AMBIENTE
 ========================================= */
@@ -4587,48 +4586,51 @@ if ("serviceWorker" in navigator) {
     toggle.textContent = playing ? "♫" : "♪";
   }
 
-  async function playMusic(manual = false) {
-    if (manual) {
-      manuallyPaused = false;
-    }
+  function startMusic() {
+    const promise = music.play();
 
-    try {
-      await music.play();
-      updateMusicButton();
-    } catch (error) {
-      updateMusicButton();
-      console.warn("Não foi possível iniciar a música:", error);
+    if (promise !== undefined) {
+      promise
+        .then(updateMusicButton)
+        .catch(error => {
+          console.warn("Não foi possível iniciar a música:", error);
+          updateMusicButton();
+        });
     }
-  }
-
-  function pauseMusic() {
-    manuallyPaused = true;
-    music.pause();
-    updateMusicButton();
   }
 
   toggle.addEventListener("click", () => {
     if (music.paused) {
-      playMusic(true);
+      manuallyPaused = false;
+      startMusic();
     } else {
-      pauseMusic();
+      manuallyPaused = true;
+      music.pause();
+      updateMusicButton();
     }
   });
 
-  function startAfterInteraction(event) {
-    if (
-      event.target instanceof Element &&
-      event.target.closest("#musicToggle")
-    ) return;
-
+  function firstInteraction() {
     if (automaticAttempted || manuallyPaused) return;
 
     automaticAttempted = true;
-    playMusic();
+    startMusic();
   }
 
-  document.addEventListener("pointerdown", startAfterInteraction);
-  document.addEventListener("keydown", startAfterInteraction);
+  document.addEventListener("click", firstInteraction, {
+    once: true,
+    capture: true
+  });
+
+  document.addEventListener("touchend", firstInteraction, {
+    once: true,
+    capture: true
+  });
+
+  document.addEventListener("keydown", firstInteraction, {
+    once: true,
+    capture: true
+  });
 
   music.addEventListener("play", updateMusicButton);
   music.addEventListener("pause", updateMusicButton);
