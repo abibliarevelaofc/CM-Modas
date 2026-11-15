@@ -5773,3 +5773,25 @@ footer strong
     font-size: 8px;
   }
 }
+
+/* STATUS CAMUFLADO DO PAINEL ADMIN */
+.admin-status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #b9c9bd !important;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  cursor: pointer;
+}
+
+.admin-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #20c875;
+  box-shadow: 0 0 7px rgba(32, 200, 117, .45);
+  display: inline-block;
+}
