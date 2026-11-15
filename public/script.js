@@ -4571,6 +4571,9 @@ if ("serviceWorker" in navigator) {
   music.loop = true;
   music.volume = 0.20;
 
+  let automaticAttempted = false;
+  let manuallyPaused = false;
+
   function updateMusicButton() {
     const playing = !music.paused;
 
@@ -4584,7 +4587,11 @@ if ("serviceWorker" in navigator) {
     toggle.textContent = playing ? "♫" : "♪";
   }
 
-  async function playMusic() {
+  async function playMusic(manual = false) {
+    if (manual) {
+      manuallyPaused = false;
+    }
+
     try {
       await music.play();
       updateMusicButton();
@@ -4595,13 +4602,14 @@ if ("serviceWorker" in navigator) {
   }
 
   function pauseMusic() {
+    manuallyPaused = true;
     music.pause();
     updateMusicButton();
   }
 
   toggle.addEventListener("click", () => {
     if (music.paused) {
-      playMusic();
+      playMusic(true);
     } else {
       pauseMusic();
     }
@@ -4613,9 +4621,10 @@ if ("serviceWorker" in navigator) {
       event.target.closest("#musicToggle")
     ) return;
 
-    if (music.paused) {
-      playMusic();
-    }
+    if (automaticAttempted || manuallyPaused) return;
+
+    automaticAttempted = true;
+    playMusic();
   }
 
   document.addEventListener("pointerdown", startAfterInteraction);
