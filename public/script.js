@@ -4557,6 +4557,7 @@ if ("serviceWorker" in navigator) {
 }
 
 
+
 /* =========================================
    CM MODAS — SISTEMA DE MÚSICA AMBIENTE
 ========================================= */
@@ -4564,25 +4565,24 @@ if ("serviceWorker" in navigator) {
 (() => {
   const music = document.getElementById("backgroundMusic");
   const toggle = document.getElementById("musicToggle");
-  const toggleText = document.getElementById("musicToggleText");
 
-  if (!music || !toggle || !toggleText) return;
+  if (!music || !toggle) return;
 
   music.loop = true;
   music.volume = 0.20;
 
   function updateMusicButton() {
-  const playing = !music.paused;
+    const playing = !music.paused;
 
-  toggle.classList.toggle("playing", playing);
-  toggle.setAttribute("aria-pressed", String(playing));
-  toggle.setAttribute(
-    "aria-label",
-    playing ? "Desativar música" : "Ativar música"
-  );
+    toggle.classList.toggle("playing", playing);
+    toggle.setAttribute("aria-pressed", String(playing));
+    toggle.setAttribute(
+      "aria-label",
+      playing ? "Desativar música" : "Ativar música"
+    );
 
-  toggle.textContent = playing ? "♫" : "♪";
-}
+    toggle.textContent = playing ? "♫" : "♪";
+  }
 
   async function playMusic() {
     try {
@@ -4590,6 +4590,7 @@ if ("serviceWorker" in navigator) {
       updateMusicButton();
     } catch (error) {
       updateMusicButton();
+      console.warn("Não foi possível iniciar a música:", error);
     }
   }
 
@@ -4606,9 +4607,11 @@ if ("serviceWorker" in navigator) {
     }
   });
 
-  // Inicia a música na primeira interação fora do botão.
   function startAfterInteraction(event) {
-    if (event.target.closest("#musicToggle")) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest("#musicToggle")
+    ) return;
 
     if (music.paused) {
       playMusic();
