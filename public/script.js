@@ -604,7 +604,8 @@ let first = colors[0];
   const img=card.querySelector(".main-photo");
   const label=card.querySelector(".current-color");
   const thumbs=[...card.querySelectorAll(".color-thumb")];
-  // LOADING INDIVIDUAL DAS MINIATURAS DE CORES
+  
+// LOADING INDIVIDUAL DAS MINIATURAS DE CORES
 thumbs.forEach(button => {
   const thumbImage = button.querySelector("img");
 
@@ -612,6 +613,7 @@ thumbs.forEach(button => {
 
   const loaded = () => {
     button.classList.remove("color-thumb-loading");
+    button.classList.remove("color-thumb-error");
   };
 
   const failed = () => {
@@ -622,12 +624,21 @@ thumbs.forEach(button => {
   thumbImage.addEventListener("load", loaded);
   thumbImage.addEventListener("error", failed);
 
-  if (thumbImage.complete && thumbImage.naturalWidth > 0) {
-    loaded();
+  if (thumbImage.getAttribute("src")) {
+    if (thumbImage.complete) {
+      if (thumbImage.naturalWidth > 0) {
+        loaded();
+      } else {
+        failed();
+      }
+    } else {
+      button.classList.add("color-thumb-loading");
+    }
   } else {
     button.classList.add("color-thumb-loading");
   }
 });
+
 
 const photoWindow = card.querySelector(".photo-window");
 
