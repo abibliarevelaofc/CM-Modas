@@ -4572,19 +4572,17 @@ if ("serviceWorker" in navigator) {
   music.volume = 0.20;
 
   function updateMusicButton() {
-    const playing = !music.paused;
+  const playing = !music.paused;
 
-    toggle.classList.toggle("playing", playing);
-    toggle.setAttribute("aria-pressed", String(playing));
-    toggle.setAttribute(
-      "aria-label",
-      playing ? "Desativar música" : "Ativar música"
-    );
+  toggle.classList.toggle("playing", playing);
+  toggle.setAttribute("aria-pressed", String(playing));
+  toggle.setAttribute(
+    "aria-label",
+    playing ? "Desativar música" : "Ativar música"
+  );
 
-    toggleText.textContent = playing
-      ? "MÚSICA LIGADA"
-      : "ATIVAR SOM";
-  }
+  toggle.textContent = playing ? "♫" : "♪";
+}
 
   async function playMusic() {
     try {
