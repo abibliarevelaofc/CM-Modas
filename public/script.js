@@ -1651,11 +1651,12 @@ const STORE={
 
 const $=s=>document.querySelector(s);
 
+
 // RESET GERAL — PRESERVA O CATÁLOGO DE PRODUTOS
 const resetSystemBtn = document.getElementById("resetSystemBtn");
 
 if (resetSystemBtn) {
- resetSystemBtn.addEventListener("click", () => {
+ resetSystemBtn.addEventListener("click", async () => {
 
   const confirmar = confirm(
    "ATENÇÃO!\n\nSerão apagados:\n\n" +
@@ -1678,15 +1679,56 @@ if (resetSystemBtn) {
    return;
   }
 
-  Object.values(STORE).forEach(chave => {
-   localStorage.removeItem(chave);
-  });
+  try {
 
-  alert("Sistema resetado com sucesso! Seus produtos foram preservados.");
+   resetSystemBtn.disabled = true;
 
-  window.location.reload();
+   const response = await fetch("/api/admin/reset", {
+    method: "POST",
+    headers: {
+     "Content-Type": "application/json",
+     "x-admin-api-key": "92533911_"
+    },
+    body: JSON.stringify({
+     confirmacao: "RESETAR"
+    })
+   });
+
+   const resultado = await response.json();
+
+   if (!response.ok || !resultado.sucesso) {
+    throw new Error(
+     resultado.erro || "Não foi possível resetar o sistema."
+    );
+   }
+
+   // Limpa os dados locais somente após o servidor confirmar.
+   Object.values(STORE).forEach(chave => {
+    localStorage.removeItem(chave);
+   });
+
+   alert(
+    "Sistema resetado com sucesso!\n\n" +
+    "Vendas excluídas: " + resultado.excluidos.vendas + "\n" +
+    "Parcelas excluídas: " + resultado.excluidos.parcelas + "\n" +
+    "Clientes excluídos: " + resultado.excluidos.clientes + "\n\n" +
+    "Seus produtos foram preservados."
+   );
+
+   window.location.reload();
+
+  } catch (error) {
+
+   console.error("Erro ao resetar sistema:", error);
+
+   alert("Erro ao resetar: " + error.message);
+
+   resetSystemBtn.disabled = false;
+  }
+
  });
 }
+
 
 const money=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
