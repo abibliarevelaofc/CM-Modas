@@ -1651,91 +1651,41 @@ const STORE={
 
 const $=s=>document.querySelector(s);
 
-
 // RESET GERAL — PRESERVA O CATÁLOGO DE PRODUTOS
 const resetSystemBtn = document.getElementById("resetSystemBtn");
 
 if (resetSystemBtn) {
-  resetSystemBtn.addEventListener("click", async () => {
+ resetSystemBtn.addEventListener("click", () => {
 
-    const confirmar = confirm(
-      "ATENÇÃO! O RESET APAGARÁ DEFINITIVAMENTE:\n\n" +
-      "• Todos os clientes\n" +
-      "• Todas as vendas e históricos\n" +
-      "• Todas as parcelas\n" +
-      "• Todos os pagamentos e recebimentos\n" +
-      "• Estoque, custos e movimentações locais\n\n" +
-      "Os produtos, fotos, preços, estoque atual e banners " +
-      "serão preservados.\n\n" +
-      "Deseja continuar?"
-    );
+  const confirmar = confirm(
+   "ATENÇÃO!\n\nSerão apagados:\n\n" +
+   "• Clientes\n" +
+   "• Vendas e históricos\n" +
+   "• Parcelas e recebimentos\n" +
+   "• Estoque local\n" +
+   "• Custos locais\n" +
+   "• Movimentações financeiras\n\n" +
+   "Os produtos cadastrados no catálogo serão preservados.\n\n" +
+   "Deseja continuar?"
+  );
 
-    if (!confirmar) return;
+  if (!confirmar) return;
 
-    const palavra = prompt("Digite RESETAR para confirmar:");
+  const palavra = prompt("Digite RESETAR para confirmar:");
 
-    if (palavra !== "RESETAR") {
-      alert("Reset cancelado.");
-      return;
-    }
+  if (palavra !== "RESETAR") {
+   alert("Reset cancelado.");
+   return;
+  }
 
-    const chaveAdmin = prompt(
-      "Digite a chave administrativa do sistema:"
-    );
-
-    if (!chaveAdmin) {
-      alert("Reset cancelado.");
-      return;
-    }
-
-    try {
-      resetSystemBtn.disabled = true;
-      resetSystemBtn.textContent = "RESETANDO...";
-
-      // Primeiro limpa o banco de dados.
-      const resposta = await fetch("/api/admin/reset", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-api-key": chaveAdmin
-        },
-        body: JSON.stringify({
-          confirmacao: "RESETAR"
-        })
-      });
-
-      const resultado = await resposta.json();
-
-      if (!resposta.ok || !resultado.sucesso) {
-        throw new Error(
-          resultado.erro || "Não foi possível resetar o sistema."
-        );
-      }
-
-      // Só limpa o navegador depois da confirmação do servidor.
-      Object.values(STORE).forEach(chave => {
-        localStorage.removeItem(chave);
-      });
-
-      alert(
-        "SISTEMA RESETADO COM SUCESSO!\n\n" +
-        "Vendas excluídas: " + resultado.excluidos.vendas + "\n" +
-        "Parcelas excluídas: " + resultado.excluidos.parcelas + "\n" +
-        "Clientes excluídos: " + resultado.excluidos.clientes + "\n\n" +
-        "Seus produtos e estoque foram preservados."
-      );
-
-      window.location.reload();
-
-    } catch (erro) {
-      console.error("Erro ao resetar sistema:", erro);
-
-      alert("ERRO AO RESETAR:\n" + erro.message);
-
-      resetSystemBtn.disabled = false;
-      resetSystemBtn.textContent = "RESETAR";
-    }
+  Object.values(STORE).forEach(chave => {
+   localStorage.removeItem(chave);
   });
+
+  alert("Sistema resetado com sucesso! Seus produtos foram preservados.");
+
+  window.location.reload();
+ });
 }
 
 const money=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
