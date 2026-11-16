@@ -717,27 +717,75 @@ app.put("/api/clients/:id", asyncRoute(async (req, res) => {
   });
 }));
 
+
 app.delete("/api/clients/:id", asyncRoute(async (req, res) => {
-  const client = await Client.findOneAndUpdate(
-    {
-      id: req.params.id,
-      active: true
-    },
-    { $set: { active: false } },
-    { new: true }
-  );
+  const clientId = String(req.params.id);
 
-  if (!client) {
-    return res.status(404).json({
-      erro: "Cliente não encontrado."
+  const session = await mongoose.startSession();
+
+  let resultado;
+
+  try {
+    await session.withTransaction(async () => {
+
+      // Confere se o cliente existe.
+      const client = await Client.findOne({
+        id: clientId
+      }).session(session);
+
+      if (!client) {
+        throw Object.assign(
+          new Error("Cliente não encontrado."),
+          { statusCode: 404 }
+        );
+      }
+
+      // Localiza todas as vendas deste cliente.
+      const vendas = await Sale.find({
+        clientId
+      })
+        .select("id")
+        .session(session)
+        .lean();
+
+      const saleIds = vendas.map(v => String(v.id));
+
+      // Apaga todas as parcelas vinculadas ao cliente
+      // ou às vendas dele.
+      const parcelasExcluidas = await Installment.deleteMany({
+        $or: [
+          { clientId },
+          { saleId: { $in: saleIds } }
+        ]
+      }).session(session);
+
+      // Apaga todas as vendas do cliente.
+      const vendasExcluidas = await Sale.deleteMany({
+        clientId
+      }).session(session);
+
+      // Apaga definitivamente o cadastro do cliente.
+      await Client.deleteOne({
+        id: clientId
+      }).session(session);
+
+      resultado = {
+        vendas: vendasExcluidas.deletedCount || 0,
+        parcelas: parcelasExcluidas.deletedCount || 0
+      };
     });
-  }
 
-  res.json({
-    sucesso: true,
-    mensagem: "Cliente arquivado; histórico preservado."
-  });
+    return res.json({
+      sucesso: true,
+      mensagem: "Cliente e todo o histórico foram excluídos definitivamente.",
+      excluidos: resultado
+    });
+
+  } finally {
+    await session.endSession();
+  }
 }));
+
 
 // ========================================
 // VENDAS

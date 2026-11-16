@@ -2523,14 +2523,19 @@ function renderClients() {
       };
     });
 
+  
   $("#clientsList")
     .querySelectorAll("[data-delete-client]")
     .forEach(button => {
       button.onclick = async () => {
-        const id = button.dataset.deleteClient;
+        const id = String(button.dataset.deleteClient);
 
         if (!confirm(
-          "Excluir este cliente? O histórico de vendas será preservado."
+          "ATENÇÃO!\n\n" +
+          "Deseja excluir DEFINITIVAMENTE este cliente?\n\n" +
+          "Todas as vendas, parcelas e pagamentos vinculados " +
+          "também serão apagados permanentemente.\n\n" +
+          "Essa operação não poderá ser desfeita."
         )) return;
 
         try {
@@ -2539,22 +2544,55 @@ function renderClients() {
             { method: "DELETE" }
           );
 
-          clients = clients.filter(
-            c => String(c.id) !== String(id)
+          // Identifica as vendas do cliente.
+          const saleIds = new Set(
+            sales
+              .filter(s => String(s.clientId) === id)
+              .map(s => String(s.id))
           );
 
+          // Remove o cliente.
+          clients = clients.filter(
+            c => String(c.id) !== id
+          );
+
+          // Remove as vendas.
+          sales = sales.filter(
+            s => String(s.clientId) !== id
+          );
+
+          // Remove parcelas e pagamentos vinculados.
+          installments = installments.filter(i =>
+            String(i.clientId) !== id &&
+            !saleIds.has(String(i.saleId))
+          );
+
+          // Atualiza os dados locais.
           persistAll();
+
           renderClients();
+          renderSales();
+          renderInstallments();
           renderDashboard();
 
-          toastMsg("Cliente arquivado no MongoDB.");
+          const history = $("#clientHistory");
+
+          if (history) {
+            history.hidden = true;
+            history.classList.remove("client-history-overlay");
+          }
+
+          toastMsg("Cliente e todo o histórico excluídos definitivamente.");
 
         } catch (error) {
-          console.error(error);
-          toastMsg(error.message || "Não foi possível excluir o cliente.");
+          console.error("Erro ao excluir cliente:", error);
+          toastMsg(
+            error.message || "Não foi possível excluir o cliente."
+          );
         }
       };
     });
+
 
   $("#clientsList")
     .querySelectorAll("[data-history]")
