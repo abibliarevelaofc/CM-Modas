@@ -21,26 +21,54 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // CONEXÃO COMPARTILHADA COM O MONGODB (VERCEL)
+
+// ========================================
+// CONEXÃO COMPARTILHADA COM O MONGODB
+// COMPATÍVEL COM VERCEL
+// ========================================
+
 let dbPromise = null;
 
+// Se o MongoDB desconectar, libera uma nova conexão.
+mongoose.connection.on("disconnected", () => {
+  console.log("[MONGODB] Conexão perdida. Preparando reconexão...");
+  dbPromise = null;
+});
+
+async function conectarMongoDB() {
+  // Já está conectado.
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  // Já existe uma conexão em andamento.
+  if (mongoose.connection.readyState === 2) {
+    await mongoose.connection.asPromise();
+    return;
+  }
+
+  // Inicia uma nova conexão.
+  if (!dbPromise) {
+    dbPromise = mongoose.connect(MONGODB_URI).catch((erro) => {
+      dbPromise = null;
+      throw erro;
+    });
+  }
+
+  await dbPromise;
+}
+
+// Todas as rotas aguardam a conexão antes de executar.
 app.use(async (req, res, next) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      if (!dbPromise) {
-        dbPromise = mongoose.connect(MONGODB_URI).catch((erro) => {
-          dbPromise = null;
-          throw erro;
-        });
-      }
-
-      await dbPromise;
-    }
-
+    await conectarMongoDB();
     next();
   } catch (erro) {
+    console.error("[MONGODB] Falha na conexão:", erro.message);
     next(erro);
   }
 });
+
 
 if (!MONGODB_URI) {
   console.error("ERRO: defina MONGODB_URI no arquivo .env");
