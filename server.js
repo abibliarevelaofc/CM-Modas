@@ -1077,6 +1077,76 @@ if (installment.paid) {
 }));
 
 
+// ========================================
+// RESET GERAL — LIMPA DADOS FINANCEIROS
+// PRESERVA PRODUTOS, ESTOQUE E BANNERS
+// ========================================
+
+app.post("/api/admin/reset", asyncRoute(async (req, res) => {
+
+  // Exige a chave administrativa configurada no servidor.
+  const chaveConfigurada = process.env.ADMIN_API_KEY;
+  const chaveEnviada = req.get("x-admin-api-key");
+
+  if (!chaveConfigurada) {
+    return res.status(503).json({
+      sucesso: false,
+      erro: "ADMIN_API_KEY não está configurada no servidor."
+    });
+  }
+
+  if (!chaveEnviada || chaveEnviada !== chaveConfigurada) {
+    return res.status(403).json({
+      sucesso: false,
+      erro: "Chave administrativa inválida."
+    });
+  }
+
+  // Confirmação adicional da operação.
+  if (req.body?.confirmacao !== "RESETAR") {
+    return res.status(400).json({
+      sucesso: false,
+      erro: "Confirmação de reset inválida."
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  let excluidos = {};
+
+  try {
+    await session.withTransaction(async () => {
+
+      // Apaga todas as parcelas e seus pagamentos.
+      const parcelas = await Installment.deleteMany({})
+        .session(session);
+
+      // Apaga todas as vendas e seus pagamentos de entrada.
+      const vendas = await Sale.deleteMany({})
+        .session(session);
+
+      // Apaga todos os clientes.
+      const clientes = await Client.deleteMany({})
+        .session(session);
+
+      excluidos = {
+        vendas: vendas.deletedCount || 0,
+        parcelas: parcelas.deletedCount || 0,
+        clientes: clientes.deletedCount || 0
+      };
+    });
+
+    return res.json({
+      sucesso: true,
+      mensagem: "Sistema financeiro resetado com sucesso.",
+      excluidos
+    });
+
+  } finally {
+    await session.endSession();
+  }
+}));
+
 
 
 // ========================================
