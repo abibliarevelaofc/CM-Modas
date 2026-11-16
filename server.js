@@ -124,45 +124,87 @@ const Client = mongoose.model("Client", ClientSchema);
 // MODELO DAS VENDAS
 // ========================================
 
+// ========================================
+// MODELO DAS VENDAS — CM MODAS
+// ========================================
+
 const SaleSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
-  clientId: { type: String, required: true, index: true },
-  clientName: { type: String, required: true },
-  productId: { type: Number, required: true, index: true },
-  productName: { type: String, required: true },
-  qty: { type: Number, required: true, min: 1 },
-  unitPrice: { type: Number, required: true, min: 0 },
-  unitCost: { type: Number, required: true, min: 0, default: 0 },
+
+  type: { type: String, default: "client" },
+  clientId: { type: String, default: null, index: true },
+  clientName: { type: String, default: "Venda direta" },
+
+  // Compatibilidade com vendas antigas
+  productId: { type: Number, default: null },
+  productName: { type: String, default: "" },
+  qty: { type: Number, default: 1 },
+  unitPrice: { type: Number, default: 0 },
+  unitCost: { type: Number, default: 0 },
+
+  // Carrinho com vários produtos
+  items: [{
+    productId: Number,
+    productName: String,
+    qty: Number,
+    unitPrice: Number,
+    unitCost: Number,
+    subtotal: Number
+  }],
+
+  subtotal: { type: Number, default: 0 },
+  discount: { type: Number, default: 0 },
   total: { type: Number, required: true, min: 0 },
-  entry: { type: Number, required: true, min: 0, default: 0 },
-  profit: { type: Number, required: true, default: 0 },
-  installmentCount: { type: Number, required: true, min: 1, default: 1 },
+  costTotal: { type: Number, default: 0 },
+  entry: { type: Number, default: 0 },
+  profit: { type: Number, default: 0 },
+
+  paymentMode: { type: String, default: "cash" },
+  installmentCount: { type: Number, default: 0 },
+
+  payments: [{
+    amount: Number,
+    date: Date,
+    description: String
+  }],
+
   date: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 const Sale = mongoose.model("Sale", SaleSchema);
 
+
 // ========================================
-// MODELO DAS PARCELAS
+// MODELO DAS PARCELAS — CM MODAS
 // ========================================
 
 const InstallmentSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
   saleId: { type: String, required: true, index: true },
-  clientId: { type: String, required: true, index: true },
-  clientName: { type: String, required: true },
-  productName: { type: String, required: true },
+
+  clientId: { type: String, default: null, index: true },
+  clientName: { type: String, default: "Venda direta" },
+  productName: { type: String, default: "" },
+
   amount: { type: Number, required: true, min: 0 },
-  dueDate: { type: String, required: true, index: true },
+  dueDate: { type: String, default: null, index: true },
+
+  noDueDate: { type: Boolean, default: false },
+
   paidAmount: { type: Number, min: 0, default: 0 },
   paid: { type: Boolean, default: false },
+  paidAt: { type: Date, default: null },
+
   payments: [{
+    id: String,
     amount: { type: Number, required: true, min: 0 },
-    paidAt: { type: Date, default: Date.now }
+    date: Date,
+    paidAt: Date
   }]
 }, { timestamps: true });
 
 const Installment = mongoose.model("Installment", InstallmentSchema);
+
 
 // ========================================
 // MODELO DOS BANNERS
@@ -598,7 +640,7 @@ app.post("/api/clients", asyncRoute(async (req, res) => {
   }
 
   const client = await Client.create({
-    id: newId("c"),
+    id: String(req.body?.id || newId("c")),
     name,
     phone,
     notes: String(req.body?.notes || "").trim(),
@@ -682,171 +724,186 @@ app.get("/api/sales", asyncRoute(async (req, res) => {
   res.json(sales);
 }));
 
-app.post("/api/sales", asyncRoute(async (req, res) => {
-  const {
-    clientId,
-    productId,
-    qty,
-    unitPrice,
-    entry = 0,
-    installmentCount = 1,
-    firstDueDate,
-    intervalDays = 30
-  } = req.body || {};
 
-  const quantity = Math.floor(toNumber(qty));
-  const productNumericId = Number(productId);
-  const price = roundMoney(toNumber(unitPrice, NaN));
-  const entryValue = roundMoney(toNumber(entry));
-  const count = Math.floor(toNumber(installmentCount));
-  const interval = Math.floor(toNumber(intervalDays));
+app.post("/api/sales", asyncRoute(async (req, res) => {
+  const data = req.body || {};
+  const sale = data.sale || {};
+  const items = Array.isArray(data.items) ? data.items : [];
+  const newInstallments = Array.isArray(data.installments)
+    ? data.installments
+    : [];
+
+  if (!sale.id || !items.length) {
+    return res.status(400).json({
+      erro: "Dados da venda incompletos."
+    });
+  }
+
+  const total = roundMoney(toNumber(sale.total, NaN));
+  const entry = roundMoney(toNumber(sale.entry));
 
   if (
-    !clientId ||
-    !Number.isInteger(productNumericId) ||
-    !Number.isInteger(quantity) ||
-    quantity < 1 ||
-    !Number.isFinite(price) ||
-    price < 0 ||
-    !Number.isFinite(entryValue) ||
-    entryValue < 0 ||
-    !Number.isInteger(count) ||
-    count < 1 ||
-    count > 36 ||
-    ![7, 15, 30].includes(interval) ||
-    !isValidDate(firstDueDate)
+    !Number.isFinite(total) ||
+    total <= 0 ||
+    !Number.isFinite(entry) ||
+    entry < 0 ||
+    entry > total
   ) {
     return res.status(400).json({
-      erro: "Dados da venda inválidos. Confira cliente, produto, quantidade, valores e vencimento."
+      erro: "Valores da venda inválidos."
     });
   }
 
   const session = await mongoose.startSession();
-
   let responseData;
 
   try {
     await session.withTransaction(async () => {
-      const client = await Client.findOne({
-        id: String(clientId),
-        active: true
-      }).session(session);
+      let client = null;
 
-      if (!client) {
-        throw Object.assign(
-          new Error("Cliente não encontrado."),
-          { statusCode: 404 }
-        );
-      }
-
-      const product = await Product.findOneAndUpdate(
-        {
-          id: productNumericId,
-          stock: { $gte: quantity }
-        },
-        {
-          $inc: { stock: -quantity }
-        },
-        {
-          new: true,
-          session
-        }
-      );
-
-      if (!product) {
-        const exists = await Product.findOne({
-          id: productNumericId
+      if (sale.type === "client") {
+        client = await Client.findOne({
+          id: String(sale.clientId),
+          active: true
         }).session(session);
 
-        if (!exists) {
+        if (!client) {
           throw Object.assign(
-            new Error("Produto não encontrado."),
+            new Error("Cliente não encontrado."),
             { statusCode: 404 }
           );
         }
-
-        throw Object.assign(
-          new Error(`Estoque insuficiente. Disponível: ${exists.stock} unidade(s).`),
-          { statusCode: 409 }
-        );
       }
 
-      const total = roundMoney(quantity * price);
+      const updatedProducts = [];
 
-      if (entryValue > total) {
-        throw Object.assign(
-          new Error("A entrada não pode ser maior que o total da venda."),
-          { statusCode: 400 }
-        );
-      }
+      // Confere e baixa o estoque de cada produto.
+      for (const item of items) {
+        const productId = Number(item.productId);
+        const qty = Math.floor(toNumber(item.qty));
 
-      const remaining = roundMoney(total - entryValue);
-      const saleId = newId("v");
-
-      const profit = roundMoney(
-        (price - Number(product.cost || 0)) * quantity
-      );
-
-      const sale = new Sale({
-        id: saleId,
-        clientId: client.id,
-        clientName: client.name,
-        productId: product.id,
-        productName: product.name,
-        qty: quantity,
-        unitPrice: price,
-        unitCost: Number(product.cost || 0),
-        total,
-        entry: entryValue,
-        profit,
-        installmentCount: remaining > 0 ? count : 0,
-        date: new Date()
-      });
-
-      await sale.save({ session });
-
-      const createdInstallments = [];
-
-      if (remaining > 0) {
-        const baseAmount =
-          Math.floor((remaining / count) * 100) / 100;
-
-        let allocated = 0;
-
-        for (let index = 0; index < count; index++) {
-          const amount = index === count - 1
-            ? roundMoney(remaining - allocated)
-            : baseAmount;
-
-          allocated = roundMoney(allocated + amount);
-
-          createdInstallments.push({
-            id: newId("p"),
-            saleId,
-            clientId: client.id,
-            clientName: client.name,
-            productName: product.name,
-            amount,
-            dueDate: addDays(
-              firstDueDate,
-              index * interval
-            ),
-            paidAmount: 0,
-            paid: false,
-            payments: []
-          });
+        if (
+          !Number.isInteger(productId) ||
+          !Number.isInteger(qty) ||
+          qty < 1
+        ) {
+          throw Object.assign(
+            new Error("Produto ou quantidade inválida."),
+            { statusCode: 400 }
+          );
         }
 
+        const product = await Product.findOneAndUpdate(
+          {
+            id: productId,
+            stock: { $gte: qty }
+          },
+          {
+            $inc: { stock: -qty }
+          },
+          {
+            new: true,
+            session
+          }
+        );
+
+        if (!product) {
+          const exists = await Product.findOne({
+            id: productId
+          }).session(session);
+
+          if (!exists) {
+            throw Object.assign(
+              new Error("Produto não encontrado: " + productId),
+              { statusCode: 404 }
+            );
+          }
+
+          throw Object.assign(
+            new Error(
+              `Estoque insuficiente para ${exists.name}. Disponível: ${exists.stock}.`
+            ),
+            { statusCode: 409 }
+          );
+        }
+
+        updatedProducts.push(product);
+      }
+
+      const saleItems = items.map(item => {
+        const product = updatedProducts.find(
+          p => String(p.id) === String(item.productId)
+        );
+
+        const qty = Math.floor(toNumber(item.qty));
+        const unitPrice = roundMoney(toNumber(item.unitPrice));
+        const unitCost = roundMoney(
+          toNumber(item.unitCost, product.cost || 0)
+        );
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          qty,
+          unitPrice,
+          unitCost,
+          subtotal: roundMoney(qty * unitPrice)
+        };
+      });
+
+      const saleDocument = new Sale({
+        ...sale,
+
+        id: String(sale.id),
+        type: sale.type === "direct" ? "direct" : "client",
+
+        clientId: client ? client.id : null,
+        clientName: client ? client.name : "Venda direta",
+
+        items: saleItems,
+
+        // Compatibilidade com relatórios antigos.
+        productId: saleItems[0]?.productId || null,
+        productName: saleItems.map(i => i.productName).join(", "),
+        qty: saleItems.reduce((sum, i) => sum + i.qty, 0),
+
+        total,
+        entry,
+        date: sale.date ? new Date(sale.date) : new Date(),
+
+        installmentCount: newInstallments.length
+      });
+
+      await saleDocument.save({ session });
+
+      const installmentDocuments = newInstallments.map(item => ({
+        id: String(item.id),
+        saleId: String(sale.id),
+        clientId: client ? client.id : null,
+        clientName: client ? client.name : "Venda direta",
+        productName: saleDocument.productName,
+        amount: roundMoney(toNumber(item.amount)),
+        dueDate: item.dueDate || null,
+        noDueDate: Boolean(item.noDueDate),
+        paidAmount: 0,
+        paid: false,
+        payments: []
+      }));
+
+      if (installmentDocuments.length) {
         await Installment.insertMany(
-          createdInstallments,
+          installmentDocuments,
           { session }
         );
       }
 
       responseData = {
-        venda: sale.toObject(),
-        parcelas: createdInstallments,
-        estoqueAtualizado: product.stock
+        venda: saleDocument.toObject(),
+        parcelas: installmentDocuments,
+        estoque: updatedProducts.map(p => ({
+          id: p.id,
+          stock: p.stock
+        }))
       };
     });
 
@@ -911,11 +968,18 @@ app.post("/api/installments/:id/payments", asyncRoute(async (req, res) => {
   installment.paid =
     installment.paidAmount >= installment.amount - 0.009;
 
-  installment.payments.push({
-    amount,
-    paidAt: new Date()
-  });
+  const paymentDate = new Date();
 
+installment.payments.push({
+  id: newId("pay"),
+  amount,
+  date: paymentDate,
+  paidAt: paymentDate
+});
+
+if (installment.paid) {
+  installment.paidAt = paymentDate;
+}
   await installment.save();
 
   res.json({
@@ -923,6 +987,9 @@ app.post("/api/installments/:id/payments", asyncRoute(async (req, res) => {
     parcela: installment
   });
 }));
+
+
+
 
 // ========================================
 // DASHBOARD

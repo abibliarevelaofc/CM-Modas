@@ -2302,93 +2302,269 @@ function renderDashboard(){
  `).join("");
 }
 
-// CLIENTES
-function clearClient(){
- $("#clientId").value="";
- $("#clientName").value="";
- $("#clientPhone").value="";
- $("#clientNotes").value="";
+
+/* ============================================================
+   CLIENTES — MONGODB
+============================================================ */
+
+async function clientRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.erro || "Erro ao salvar cliente.");
+  }
+
+  return data;
 }
 
-$("#clientForm").addEventListener("submit",e=>{
- e.preventDefault();
+/* CARREGAR CLIENTES DO MONGODB E MIGRAR OS ANTIGOS */
+async function loadClientsFromMongo() {
+  try {
+    let remoteClients = await clientRequest("/api/clients");
 
- const id=$("#clientId").value||("c"+Date.now());
+    // Migra clientes antigos do navegador que ainda não existem no MongoDB.
+    for (const oldClient of clients) {
+      const exists = remoteClients.some(
+        c => String(c.id) === String(oldClient.id)
+      );
 
- const item={
-  id,
-  name:$("#clientName").value.trim(),
-  phone:$("#clientPhone").value.trim(),
-  notes:$("#clientNotes").value.trim()
- };
+      if (!exists) {
+        await clientRequest("/api/clients", {
+          method: "POST",
+          body: JSON.stringify({
+            id: String(oldClient.id),
+            name: oldClient.name,
+            phone: oldClient.phone,
+            notes: oldClient.notes || ""
+          })
+        });
+      }
+    }
 
- if(!item.name||!item.phone)return;
+    // Busca novamente a lista definitiva do banco.
+    remoteClients = await clientRequest("/api/clients");
 
- const idx=clients.findIndex(c=>c.id===id);
+    clients = remoteClients;
+    persistAll();
 
- if(idx>=0)clients[idx]=item;
- else clients.push(item);
+    populateClientSelect();
+    renderClients();
 
- persistAll();
- clearClient();
- renderClients();
- toastMsg("Cliente salvo.");
+    return true;
+
+  } catch (error) {
+    console.error("Erro ao carregar clientes do MongoDB:", error);
+    toastMsg("Não foi possível carregar os clientes do banco.");
+    return false;
+  }
+}
+
+
+async function loadFinanceFromMongo() {
+  try {
+    const [salesResponse, installmentsResponse] = await Promise.all([
+      fetch("/api/sales"),
+      fetch("/api/installments")
+    ]);
+
+    if (!salesResponse.ok || !installmentsResponse.ok) {
+      throw new Error("Não foi possível carregar os dados financeiros.");
+    }
+
+    const remoteSales = await salesResponse.json();
+    const remoteInstallments = await installmentsResponse.json();
+
+    sales = Array.isArray(remoteSales) ? remoteSales : [];
+    installments = Array.isArray(remoteInstallments)
+      ? remoteInstallments
+      : [];
+
+    persistAll();
+
+    renderSales();
+    renderInstallments();
+    renderDashboard();
+    renderCalendar();
+
+  } catch (error) {
+    console.error("Erro ao carregar financeiro do MongoDB:", error);
+    toastMsg("Erro ao carregar vendas e parcelas do banco.");
+  }
+}
+
+/* LIMPAR FORMULÁRIO */
+function clearClient() {
+  $("#clientId").value = "";
+  $("#clientName").value = "";
+  $("#clientPhone").value = "";
+  $("#clientNotes").value = "";
+}
+
+/* CADASTRAR OU EDITAR */
+$("#clientForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const id = $("#clientId").value || ("c" + Date.now());
+
+  const item = {
+    id,
+    name: $("#clientName").value.trim(),
+    phone: $("#clientPhone").value.trim(),
+    notes: $("#clientNotes").value.trim()
+  };
+
+  if (!item.name || !item.phone) {
+    toastMsg("Informe o nome e o telefone do cliente.");
+    return;
+  }
+
+  const editing = clients.some(
+    c => String(c.id) === String(id)
+  );
+
+  try {
+    const result = await clientRequest(
+      editing
+        ? `/api/clients/${encodeURIComponent(id)}`
+        : "/api/clients",
+      {
+        method: editing ? "PUT" : "POST",
+        body: JSON.stringify(item)
+      }
+    );
+
+    const savedClient = result.cliente;
+
+    const index = clients.findIndex(
+      c => String(c.id) === String(savedClient.id)
+    );
+
+    if (index >= 0) {
+      clients[index] = savedClient;
+    } else {
+      clients.push(savedClient);
+    }
+
+    persistAll();
+    clearClient();
+    renderClients();
+    renderDashboard();
+
+    toastMsg("Cliente salvo no MongoDB!");
+
+  } catch (error) {
+    console.error(error);
+    toastMsg(error.message || "Não foi possível salvar o cliente.");
+  }
 });
 
-$("#clearClientForm").onclick=clearClient;
-$("#clientSearch").addEventListener("input",renderClients);
+$("#clearClientForm").onclick = clearClient;
+$("#clientSearch").addEventListener("input", renderClients);
 
-function renderClients(){
- const q=($("#clientSearch").value||"").toLocaleLowerCase("pt-BR");
+/* LISTAR CLIENTES */
+function renderClients() {
+  const q = ($("#clientSearch").value || "")
+    .toLocaleLowerCase("pt-BR");
 
- $("#clientsList").innerHTML=clients
-  .filter(c=>(c.name+" "+c.phone).toLocaleLowerCase("pt-BR").includes(q))
-  .map(c=>{
-   const count=sales.filter(s=>s.clientId===c.id).length;
+  $("#clientsList").innerHTML = clients
+    .filter(c =>
+      (c.name + " " + c.phone)
+        .toLocaleLowerCase("pt-BR")
+        .includes(q)
+    )
+    .map(c => {
+      const count = sales.filter(
+        s => String(s.clientId) === String(c.id)
+      ).length;
 
-   return `
-    <div class="data-row">
-     <div class="data-row-main">
-      <strong>${esc(c.name)}</strong>
-      <small>${esc(c.phone)} · ${count} compra(s)</small>
-     </div>
-     <div class="data-row-actions">
-      <button data-history="${c.id}">HISTÓRICO</button>
-      <button data-edit-client="${c.id}">EDITAR</button>
-      <button class="danger" data-delete-client="${c.id}">EXCLUIR</button>
-     </div>
-    </div>
-   `;
-  }).join("")||'<div class="empty">Nenhum cliente cadastrado.</div>';
+      return `
+        <div class="data-row">
+          <div class="data-row-main">
+            <strong>${esc(c.name)}</strong>
+            <small>${esc(c.phone)} · ${count} compra(s)</small>
+          </div>
 
- $("#clientsList").querySelectorAll("[data-edit-client]").forEach(b=>{
-  b.onclick=()=>{
-   const c=clients.find(x=>x.id===b.dataset.editClient);
-   if(!c)return;
+          <div class="data-row-actions">
+            <button data-history="${esc(c.id)}">HISTÓRICO</button>
+            <button data-edit-client="${esc(c.id)}">EDITAR</button>
+            <button class="danger" data-delete-client="${esc(c.id)}">
+              EXCLUIR
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .join("") || '<div class="empty">Nenhum cliente cadastrado.</div>';
 
-   $("#clientId").value=c.id;
-   $("#clientName").value=c.name;
-   $("#clientPhone").value=c.phone;
-   $("#clientNotes").value=c.notes||"";
-   $("#clientName").focus();
-  };
- });
+  $("#clientsList")
+    .querySelectorAll("[data-edit-client]")
+    .forEach(button => {
+      button.onclick = () => {
+        const client = clients.find(
+          c => String(c.id) === String(button.dataset.editClient)
+        );
 
- $("#clientsList").querySelectorAll("[data-delete-client]").forEach(b=>{
-  b.onclick=()=>{
-   if(!confirm("Excluir este cliente? O histórico de vendas será preservado."))return;
+        if (!client) return;
 
-   clients=clients.filter(c=>c.id!==b.dataset.deleteClient);
-   persistAll();
-   renderClients();
-  };
- });
+        $("#clientId").value = client.id;
+        $("#clientName").value = client.name;
+        $("#clientPhone").value = client.phone;
+        $("#clientNotes").value = client.notes || "";
 
- $("#clientsList").querySelectorAll("[data-history]").forEach(b=>{
-  b.onclick=()=>renderClientHistory(b.dataset.history);
- });
+        $("#clientName").focus();
+      };
+    });
 
- populateClientSelect();
+  $("#clientsList")
+    .querySelectorAll("[data-delete-client]")
+    .forEach(button => {
+      button.onclick = async () => {
+        const id = button.dataset.deleteClient;
+
+        if (!confirm(
+          "Excluir este cliente? O histórico de vendas será preservado."
+        )) return;
+
+        try {
+          await clientRequest(
+            `/api/clients/${encodeURIComponent(id)}`,
+            { method: "DELETE" }
+          );
+
+          clients = clients.filter(
+            c => String(c.id) !== String(id)
+          );
+
+          persistAll();
+          renderClients();
+          renderDashboard();
+
+          toastMsg("Cliente arquivado no MongoDB.");
+
+        } catch (error) {
+          console.error(error);
+          toastMsg(error.message || "Não foi possível excluir o cliente.");
+        }
+      };
+    });
+
+  $("#clientsList")
+    .querySelectorAll("[data-history]")
+    .forEach(button => {
+      button.onclick = () => {
+        renderClientHistory(button.dataset.history);
+      };
+    });
+
+  populateClientSelect();
 }
 
 
@@ -3504,50 +3680,53 @@ $("#saleForm")?.addEventListener("submit", async e => {
   }
 
   /* BAIXA DO ESTOQUE */
-  const stockChanges = [];
 
-  try{
-    for(const item of items){
-      const product = getCatalog().find(p =>
-        String(p.id) === String(item.productId)
+  /* SALVAR VENDA E DAR BAIXA NO ESTOQUE PELO MONGODB */
+
+  try {
+    const response = await fetch("/api/sales", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        sale,
+        items,
+        installments: newInstallments
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.sucesso) {
+      throw new Error(
+        result.erro || "Não foi possível registrar a venda."
       );
-
-      const previousStock = localStock(product);
-
-      stockMap[product.id] = previousStock - item.qty;
-
-      stockChanges.push({
-        product,
-        previousStock
-      });
     }
 
-    for(const change of stockChanges){
-      await saveProductStock(change.product);
-    }
+    // A venda e as parcelas passam a vir do MongoDB.
+    sales.push(result.venda);
+    installments.push(...result.parcelas);
 
-  }catch(error){
-
-    for(const change of stockChanges){
-      stockMap[change.product.id] = change.previousStock;
-    }
+    // Atualiza o estoque local com os valores confirmados pelo servidor.
+    (result.estoque || []).forEach(item => {
+      stockMap[item.id] = Number(item.stock);
+    });
 
     persistAll();
 
-    console.error(error);
+    // Atualiza também o catálogo exibido na página.
+    await refreshCatalog();
+
+  } catch (error) {
+    console.error("Erro ao registrar venda:", error);
 
     toastMsg(
-      "Não foi possível atualizar o estoque. Venda não registrada."
+      error.message || "Erro ao salvar a venda no banco de dados."
     );
 
     return;
   }
-
-  /* SALVAR VENDA */
-  sales.push(sale);
-  installments.push(...newInstallments);
-
-  persistAll();
 
   /* LIMPAR FORMULÁRIO APÓS SUCESSO */
   saleCart = [];
@@ -3686,26 +3865,50 @@ if($("#salesTypeFilter")){
 
 // FINANCEIRO E PARCELAS
 
+/* ============================================================
+   FINANCEIRO E PARCELAS — RECEBIMENTOS PELO MONGODB
+============================================================ */
+
+async function registerInstallmentPayment(item, amount) {
+  const response = await fetch(
+    "/api/installments/" + encodeURIComponent(item.id) + "/payments",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ amount })
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.sucesso) {
+    throw new Error(result.erro || "Não foi possível registrar o recebimento.");
+  }
+
+  Object.assign(item, result.parcela);
+  persistAll();
+
+  return result.parcela;
+}
+
 function renderInstallments(){
   const filter = $("#installmentFilter")?.value || "all";
 
   const open = installments
     .filter(i => !i.paid)
-    .reduce((sum, i) => {
-      return sum + Math.max(
-        0,
-        Number(i.amount) - Number(i.paidAmount || 0)
-      );
-    }, 0);
+    .reduce((sum, i) => sum + Math.max(
+      0,
+      Number(i.amount) - Number(i.paidAmount || 0)
+    ), 0);
 
   const late = installments
     .filter(i => dueStatus(i) === "late")
-    .reduce((sum, i) => {
-      return sum + Math.max(
-        0,
-        Number(i.amount) - Number(i.paidAmount || 0)
-      );
-    }, 0);
+    .reduce((sum, i) => sum + Math.max(
+      0,
+      Number(i.amount) - Number(i.paidAmount || 0)
+    ), 0);
 
   $("#financeOpen").textContent = money(open);
   $("#financeLate").textContent = money(late);
@@ -3737,9 +3940,7 @@ function renderInstallments(){
       Number(i.amount) - Number(i.paidAmount || 0)
     );
 
-    const history = Array.isArray(i.payments)
-      ? i.payments
-      : [];
+    const history = Array.isArray(i.payments) ? i.payments : [];
 
     return `
       <div class="data-row">
@@ -3752,8 +3953,7 @@ function renderInstallments(){
           <small>
             ${i.noDueDate || !i.dueDate
               ? "Sem vencimento definido"
-              : "Vencimento: " +
-                parseDate(i.dueDate).toLocaleDateString("pt-BR")}
+              : "Vencimento: " + parseDate(i.dueDate).toLocaleDateString("pt-BR")}
           </small>
 
           <small>
@@ -3771,7 +3971,7 @@ function renderInstallments(){
                   <summary>Histórico de recebimentos (${history.length})</summary>
                   ${history.map(p => `
                     <small>
-                      ${new Date(p.date).toLocaleString("pt-BR")}
+                      ${new Date(p.date || p.paidAt).toLocaleString("pt-BR")}
                       · ${money(p.amount)}
                     </small>
                   `).join("")}
@@ -3795,7 +3995,7 @@ function renderInstallments(){
   `;
 
   $("#installmentsList").querySelectorAll("[data-pay]").forEach(button => {
-    button.onclick = () => {
+    button.onclick = async () => {
       const item = installments.find(
         x => String(x.id) === String(button.dataset.pay)
       );
@@ -3814,9 +4014,11 @@ function renderInstallments(){
 
       if(raw === null) return;
 
-      const amount = Number(
-        raw.trim().replace(/\./g, "").replace(",", ".")
-      );
+      const normalized = raw.trim().includes(",")
+        ? raw.trim().replace(/\./g, "").replace(",", ".")
+        : raw.trim();
+
+      const amount = Number(normalized);
 
       if(
         !Number.isFinite(amount) ||
@@ -3827,33 +4029,13 @@ function renderInstallments(){
         return;
       }
 
-      const payment = {
-        id: "pay_" + Date.now(),
-        amount,
-        date: new Date().toISOString()
-      };
-
-      // Guarda o histórico individual de cada recebimento.
-      if(!Array.isArray(item.payments)){
-        item.payments = [];
+      try {
+        await registerInstallmentPayment(item, amount);
+      } catch(error) {
+        console.error("Erro ao registrar recebimento:", error);
+        toastMsg(error.message || "Erro ao registrar recebimento.");
+        return;
       }
-
-      item.payments.push(payment);
-
-      // Atualiza o acumulado da parcela.
-      item.paidAmount = Math.min(
-        Number(item.amount),
-        Number(item.paidAmount || 0) + amount
-      );
-
-      item.paid =
-        item.paidAmount >= Number(item.amount) - 0.009;
-
-      if(item.paid){
-        item.paidAt = payment.date;
-      }
-
-      persistAll();
 
       renderInstallments();
       renderDashboard();
@@ -3861,10 +4043,11 @@ function renderInstallments(){
       renderSales();
       renderCashHistory();
 
-      toastMsg("Recebimento registrado no caixa. Estoque não foi alterado.");
+      toastMsg("Recebimento registrado no caixa.");
     };
   });
 }
+
 
 $("#installmentFilter").addEventListener(
   "change",
@@ -4034,6 +4217,8 @@ $("#loginAdmin").addEventListener("click",async()=>{
  setTimeout(async()=>{
   if(!$("#adminContent").hidden){
    await refreshCatalog();
+   await loadClientsFromMongo();
+   await loadFinanceFromMongo();
    renderDashboard();
    renderClients();
    renderSales();
@@ -4046,6 +4231,8 @@ $("#adminAccess").addEventListener("click",async()=>{
  setTimeout(async()=>{
   if(!$("#adminContent").hidden){
    await refreshCatalog();
+   await loadClientsFromMongo();
+   await loadFinanceFromMongo();
    renderDashboard();
    renderClients();
    renderSales();
