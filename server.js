@@ -1546,8 +1546,25 @@ app.use((req, res) => {
   });
 });
 
+
+// ========================================
+// TRATAMENTO DE ERROS — CM MODAS
+// ========================================
+
+app.use((req, res) => {
+  res.status(404).json({
+    erro: "Rota não encontrada."
+  });
+});
+
 app.use((erro, req, res, next) => {
-  console.error("Erro na API:", erro);
+  console.error("================================");
+  console.error("ERRO NA API CM MODAS");
+  console.error("Rota:", req.method, req.originalUrl);
+  console.error("Mensagem:", erro.message);
+  console.error("Código:", erro.code);
+  console.error("Stack:", erro.stack);
+  console.error("================================");
 
   if (erro.code === 11000) {
     return res.status(409).json({
@@ -1565,12 +1582,14 @@ app.use((erro, req, res, next) => {
     });
   }
 
-  res.status(erro.statusCode || 500).json({
+  return res.status(erro.statusCode || 500).json({
     erro: erro.statusCode
       ? erro.message
-      : "Erro interno do servidor."
+      : "Erro interno ao processar a operação.",
+    detalhe: erro.message
   });
 });
+
 
 // ========================================
 // INICIAR SERVIDOR

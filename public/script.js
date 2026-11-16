@@ -3543,8 +3543,8 @@ $("#saleForm")?.addEventListener("submit", async e => {
   const mode = $("#salePaymentMode")?.value || "cash";
 
   const entry = mode === "cash"
-    ? totals.total
-    : totals.entry;
+  ? totals.total
+  : Math.max(0, Number(totals.entry) || 0);
 
   if(totals.discount > totals.availableProfit){
     toastMsg("O desconto ultrapassa o lucro disponível.");
@@ -3699,10 +3699,12 @@ $("#saleForm")?.addEventListener("submit", async e => {
     const result = await response.json();
 
     if (!response.ok || !result.sucesso) {
-      throw new Error(
-        result.erro || "Não foi possível registrar a venda."
-      );
-    }
+  throw new Error(
+    result.detalhe
+      ? `${result.erro} Detalhe: ${result.detalhe}`
+      : result.erro || "Não foi possível registrar a venda."
+  );
+}
 
     // A venda e as parcelas passam a vir do MongoDB.
     sales.push(result.venda);
