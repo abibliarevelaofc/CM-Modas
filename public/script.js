@@ -355,6 +355,7 @@ const categoryGroups = {
 
 let selectedCategory = "Destaques";
 
+
 function renderCategoryTabs(){
  const root = $("#categoryTabs");
  if(!root) return;
@@ -363,7 +364,7 @@ function renderCategoryTabs(){
   <button type="button"
    class="category-tab ${category === selectedCategory ? "active" : ""}"
    data-category="${safeText(category)}">
-   ${safeText(category)}
+   ${category === "Destaques" ? "Todas" : safeText(category)}
   </button>
  `).join("");
 
@@ -382,6 +383,7 @@ function renderCategoryTabs(){
   });
  });
 }
+
 
 function openGender(g){
  gender = g;
@@ -419,7 +421,7 @@ function goHome(){
 
 const imageRequests = new Map();
 
-async function loadProductImages(product) {
+async function loadProductImages(product, forceReload = false) {
   if (!product) {
     throw new Error("Produto não encontrado.");
   }
@@ -437,13 +439,13 @@ async function loadProductImages(product) {
       color.image.trim() !== ""
     );
 
-  if (allImagesLoaded) {
-    return existingColors;
-  }
+ if (!forceReload && allImagesLoaded) {
+  return existingColors;
+}
 
-  if (imageRequests.has(product.id)) {
-    return imageRequests.get(product.id);
-  }
+if (!forceReload && imageRequests.has(product.id)) {
+  return imageRequests.get(product.id);
+}
 
   const request = (async () => {
     const response = await fetch(
@@ -464,15 +466,18 @@ async function loadProductImages(product) {
     }
 
     const loadedColors = data.colors.map((savedColor, index) => ({
-      name: String(
-        savedColor?.name ||
-        existingColors[index]?.name ||
-        "Cor"
-      ),
-      image: typeof savedColor?.image === "string"
-        ? savedColor.image
-        : ""
-    }));
+  name: String(
+    savedColor?.name ||
+    existingColors[index]?.name ||
+    "Cor"
+  ),
+  image: typeof savedColor?.image === "string"
+    ? savedColor.image
+    : "",
+  soldOut: Boolean(
+    savedColor?.soldOut ?? existingColors[index]?.soldOut
+  )
+}));
 
     const missingImage = loadedColors.some(
       color => !color.image.trim()
@@ -548,6 +553,9 @@ let first = colors[0];
     <small>CARREGANDO FOTO</small>
   </div>
      <img class="main-photo" src="${safeText(first.image||"")}" alt="${safeText(p.name)}" loading="lazy">
+     <div class="sold-out-overlay">
+  <span>ESGOTADO</span>
+</div>
      <span class="photo-ref-tag">FOTO DE REFERÊNCIA</span>
     <button class="photo-like-btn" type="button" aria-label="Curtir peça">
     <span class="like-heart-icon">♡</span>
@@ -581,7 +589,23 @@ let first = colors[0];
   </button>
  `).join("")}
 </div>
-   </div>
+     </div>
+
+   <div class="color-stock-status" style="
+    display:none;
+    width:100%;
+    box-sizing:border-box;
+    padding:10px;
+    margin-top:8px;
+    background:#d92535;
+    color:#fff;
+    text-align:center;
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:1.5px;
+    border-radius:8px;
+    box-shadow:0 3px 12px rgba(217,37,53,.28);
+   ">⚠ ESTA COR ESTÁ ESGOTADA</div>
 
    <div class="product-bottom">
     <div class="price-row">
@@ -670,21 +694,47 @@ function setMainPhoto(src) {
   }
 }
 
-  let chosen=first;
-let selectedSize="";
-  const whatsapp=card.querySelector(".whatsapp-btn");
+
+let chosen = first;
+let selectedSize = "";
+
+const stockStatus = card.querySelector(".color-stock-status");
+const cartButton = card.querySelector(".add-cart-btn");
+
+function updateColorStock(){
+  const soldOut = Boolean(chosen.soldOut);
+
+  const overlay = card.querySelector(".sold-out-overlay");
+
+  overlay.style.display = soldOut ? "flex" : "none";
+
+  stockStatus.style.display = "none";
+
+  cartButton.disabled = soldOut;
+  cartButton.innerHTML = soldOut
+    ? "✕ COR ESGOTADA"
+    : "<span>＋</span> ADICIONAR AO CARRINHO";
+
+  cartButton.style.opacity = soldOut ? ".55" : "1";
+  cartButton.style.cursor = soldOut ? "not-allowed" : "pointer";
+}
+
+// Executa somente depois de criar os elementos e escolher a cor.
+updateColorStock();
+
+const whatsapp = card.querySelector(".whatsapp-btn");
 
  
 
-function updateWhatsapp(){
- const message =
-  "Olá! Tenho interesse nesta peça da CM MODAS:\n\n"+
-  "PEÇA: "+p.name+"\n"+
-  "COR: "+chosen.name+"\n"+
-  "TAMANHO: "+(selectedSize || "Ainda não selecionado")+"\n"+
-  "Gostaria de saber as formas de pagamento e as opções de entrega para finalizar meu pedido. Desde já agradeço.";
+function updateWhatsapp() {
+  const message =
+    "Olá! Tenho interesse nesta peça da CM MODAS:\n\n" +
+    "PEÇA: " + p.name + "\n\n" +
+    "COR: " + chosen.name + "\n\n" +
+    "TAMANHO: " + (selectedSize || "Ainda não selecionado") + "\n\n" +
+    "Gostaria de saber as formas de pagamento e as opções de entrega, por favor.";
 
- whatsapp.href="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message);
+  whatsapp.href = "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(message);
 }
 
 whatsapp.addEventListener("click", () => {
@@ -696,6 +746,7 @@ whatsapp.addEventListener("click", () => {
     colors = await loadProductImages(p);
 
     chosen = colors[i] || colors[0];
+    updateColorStock();
 
     setMainPhoto(chosen.image);
     label.textContent = chosen.name;
@@ -869,6 +920,11 @@ likeButton.addEventListener("click", () => {
   // ADICIONAR PEÇA AO CARRINHO COM A COR SELECIONADA
  card.querySelector(".add-cart-btn").addEventListener("click",()=>{
 
+ if(chosen.soldOut){
+  toast("Esta cor está esgotada.");
+  return;
+ }
+
  addToCart(p,chosen,selectedSize || "Ainda não selecionado");
 
  const btn=card.querySelector(".add-cart-btn");
@@ -876,7 +932,7 @@ likeButton.addEventListener("click", () => {
  btn.classList.add("added");
 
  setTimeout(()=>{
-  btn.innerHTML="<span>＋</span> ADICIONAR AO CARRINHO";
+  updateColorStock();
   btn.classList.remove("added");
  },1200);
 });
@@ -1043,7 +1099,7 @@ function clearForm() {
   renderColorRows();
 }
 
-// CORES E FOTOS
+
 function renderColorRows(){
  const root=$("#colorRows");
  root.innerHTML="";
@@ -1056,10 +1112,32 @@ function renderColorRows(){
    <input class="color-name" placeholder="Nome da cor" value="${safeText(c.name)}">
    <input class="color-url" placeholder="URL da foto (opcional)" value="${safeText(c.image?.startsWith("data:")?"":c.image||"")}">
    <button type="button" title="Remover cor">×</button>
+
    <label style="grid-column:1/-1;font-size:9px;color:#a49c8e">
     Ou enviar foto desta cor:
     <input class="color-file" type="file" accept="image/*" style="font-size:9px;margin-left:6px">
    </label>
+
+   <label style="
+    grid-column:1/-1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:9px 11px;
+    background:rgba(220,45,55,.09);
+    border:1px solid rgba(255,75,85,.25);
+    border-radius:8px;
+    color:#ff737d;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+   ">
+    <input class="color-sold-out" type="checkbox"
+     ${c.soldOut ? "checked" : ""}
+     style="width:16px;height:16px;accent-color:#ef3545">
+    MARCAR ESTA COR COMO ESGOTADA
+   </label>
+
    <img class="color-preview" src="${safeText(c.image||"")}" style="width:60px;height:70px;object-fit:cover;border-radius:6px;${c.image?"":"display:none"}">
   `;
 
@@ -1072,6 +1150,10 @@ function renderColorRows(){
    const im=row.querySelector(".color-preview");
    im.src=e.target.value;
    im.style.display=e.target.value?"block":"none";
+  });
+
+  row.querySelector(".color-sold-out").addEventListener("change",e=>{
+   currentColors[i].soldOut=e.target.checked;
   });
 
   row.querySelector("button").onclick=()=>{
@@ -1101,6 +1183,7 @@ function renderColorRows(){
  });
 }
 
+
 $("#addColor").onclick=()=>{
  currentColors.push({name:"Nova cor",image:""});
  renderColorRows();
@@ -1113,7 +1196,7 @@ async function editProduct(id) {
   if (!p) return;
 
   try {
-    const loadedColors = await loadProductImages(p);
+    const loadedColors = await loadProductImages(p, true);
 
     if (
       !Array.isArray(loadedColors) ||
@@ -1126,9 +1209,10 @@ async function editProduct(id) {
     }
 
     currentColors = loadedColors.map(c => ({
-      name: String(c.name || "Cor"),
-      image: c.image
-    }));
+  name: String(c.name || "Cor"),
+  image: c.image,
+  soldOut: Boolean(c.soldOut)
+}));
 
   } catch (error) {
     console.error("Erro ao carregar fotos para edição:", error);
@@ -1186,12 +1270,13 @@ $("#saveProduct").onclick=async()=>{
   return;
  }
 
- const cleanColors=currentColors
-  .map(c=>({
-   name:c.name.trim()||"Cor",
-   image:c.image.trim()
-  }))
-  .filter(c=>c.image);
+const cleanColors=currentColors
+ .map(c=>({
+  name:c.name.trim()||"Cor",
+  image:c.image.trim(),
+  soldOut:Boolean(c.soldOut)
+ }))
+ .filter(c=>c.image);
 
  if(!cleanColors.length){
   toast("Adicione pelo menos uma foto de cor.");
@@ -2098,40 +2183,78 @@ function manualExpenseTotal(){
   .reduce((sum,m)=>sum+Number(m.amount||0),0);
 }
 
-function addCashMovement(type){
- const label=type==="revenue"?"receita":"despesa";
 
- const description=prompt("Descrição da "+label+":");
- if(description===null)return;
+async function addCashMovement(type) {
 
- if(!description.trim()){
-  toastMsg("Informe uma descrição.");
-  return;
- }
+  const label = type === "revenue" ? "receita" : "despesa";
 
- const raw=prompt("Qual o valor da "+label+"?");
- if(raw===null)return;
+  const description = prompt("Descrição da " + label + ":");
 
- const amount=Number(raw.trim().replace(/\./g,"").replace(",","."));
+  if (description === null) return;
 
- if(!Number.isFinite(amount)||amount<=0){
-  toastMsg("Informe um valor válido.");
-  return;
- }
+  if (!description.trim()) {
+    toastMsg("Informe uma descrição.");
+    return;
+  }
 
- movements.push({
-  id:"mov_"+Date.now(),
-  type,
-  description:description.trim(),
-  amount,
-  date:todayISO()
- });
+  const raw = prompt("Qual o valor da " + label + "?");
 
- persistAll();
- renderDashboard();
+  if (raw === null) return;
 
- toastMsg(type==="revenue"?"Receita adicionada ao caixa!":"Despesa adicionada ao caixa!");
+  const amount = Number(
+    raw.trim().replace(/\./g, "").replace(",", ".")
+  );
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    toastMsg("Informe um valor válido.");
+    return;
+  }
+
+  const movement = {
+    id: "mov_" + Date.now() + "_" +
+      Math.random().toString(36).slice(2, 8),
+    type,
+    description: description.trim(),
+    amount,
+    date: todayISO()
+  };
+
+  try {
+
+    const result = await clientRequest(
+      "/api/cash-movements",
+      {
+        method: "POST",
+        body: JSON.stringify(movement)
+      }
+    );
+
+    if (!result.sucesso || !result.movimentacao) {
+      throw new Error("Não foi possível salvar a movimentação.");
+    }
+
+    // Atualiza somente após confirmação do MongoDB.
+    movements.unshift(result.movimentacao);
+
+    persistAll();
+
+    renderDashboard();
+
+    toastMsg(
+      type === "revenue"
+        ? "Receita salva no MongoDB!"
+        : "Despesa salva no MongoDB!"
+    );
+
+  } catch (error) {
+
+    console.error("Erro ao salvar movimentação:", error);
+
+    toastMsg("Erro ao salvar no banco de dados. Tente novamente.");
+
+  }
 }
+
 
 function renderCashHistory(){
  const items=[];
@@ -2410,11 +2533,13 @@ async function loadClientsFromMongo() {
 }
 
 
+
 async function loadFinanceFromMongo() {
   try {
+
     const [salesResponse, installmentsResponse] = await Promise.all([
-      fetch("/api/sales"),
-      fetch("/api/installments")
+      fetch("/api/sales", { cache: "no-store" }),
+      fetch("/api/installments", { cache: "no-store" })
     ]);
 
     if (!salesResponse.ok || !installmentsResponse.ok) {
@@ -2425,10 +2550,48 @@ async function loadFinanceFromMongo() {
     const remoteInstallments = await installmentsResponse.json();
 
     sales = Array.isArray(remoteSales) ? remoteSales : [];
+
     installments = Array.isArray(remoteInstallments)
       ? remoteInstallments
       : [];
 
+    // CARREGAR MOVIMENTAÇÕES DO MONGODB
+    let remoteMovements = await clientRequest(
+      "/api/cash-movements"
+    );
+
+    // MIGRAR RECEITAS E DESPESAS ANTIGAS DO LOCALSTORAGE
+    for (const oldMovement of movements) {
+
+      if (!oldMovement.id) {
+        oldMovement.id = "mov_" + Date.now() + "_" +
+          Math.random().toString(36).slice(2, 8);
+      }
+
+      const exists = remoteMovements.some(
+        item => String(item.id) === String(oldMovement.id)
+      );
+
+      if (!exists) {
+
+        await clientRequest("/api/cash-movements", {
+          method: "POST",
+          body: JSON.stringify(oldMovement)
+        });
+
+      }
+    }
+
+    // BUSCAR NOVAMENTE A LISTA DEFINITIVA
+    remoteMovements = await clientRequest(
+      "/api/cash-movements"
+    );
+
+    movements = Array.isArray(remoteMovements)
+      ? remoteMovements
+      : [];
+
+    // LOCALSTORAGE FICA SOMENTE COMO CÓPIA LOCAL
     persistAll();
 
     renderSales();
@@ -2437,10 +2600,14 @@ async function loadFinanceFromMongo() {
     renderCalendar();
 
   } catch (error) {
+
     console.error("Erro ao carregar financeiro do MongoDB:", error);
-    toastMsg("Erro ao carregar vendas e parcelas do banco.");
+
+    toastMsg("Erro ao carregar os dados financeiros do banco.");
+
   }
 }
+
 
 /* LIMPAR FORMULÁRIO */
 function clearClient() {

@@ -5945,3 +5945,168 @@ footer strong
   object-fit: cover;
   border-radius: inherit;
 }
+
+
+
+/* =====================================================
+   CM MODAS — IDENTIDADE VISUAL DAS COLEÇÕES
+   Masculino: azul premium
+   Feminino: rosa premium
+   ===================================================== */
+
+/* MASCULINO */
+#catalog .gender-tabs .gender-card[data-gender="masculino"] {
+  border: 1px solid rgba(75, 151, 235, .42);
+  background: linear-gradient(145deg, #111a27, #0b1019);
+  color: #a9c9ed;
+  transition: .25s ease;
+}
+
+#catalog .gender-tabs .gender-card[data-gender="masculino"].active {
+  color: #fff;
+  border-color: #62adff;
+  background: linear-gradient(135deg, #174b80, #287fc9);
+  box-shadow:
+    0 0 0 1px rgba(98, 173, 255, .2),
+    0 5px 22px rgba(35, 125, 210, .28);
+}
+
+/* FEMININO */
+#catalog .gender-tabs .gender-card[data-gender="feminino"] {
+  border: 1px solid rgba(231, 139, 181, .42);
+  background: linear-gradient(145deg, #271521, #160e15);
+  color: #e9b4cd;
+  transition: .25s ease;
+}
+
+#catalog .gender-tabs .gender-card[data-gender="feminino"].active {
+  color: #fff;
+  border-color: #f2a5c8;
+  background: linear-gradient(135deg, #873b62, #c15c8b);
+  box-shadow:
+    0 0 0 1px rgba(242, 165, 200, .2),
+    0 5px 22px rgba(193, 92, 139, .28);
+}
+
+/* EFEITO DE TOQUE */
+#catalog .gender-tabs .gender-card:active,
+#catalog .category-tab:active {
+  transform: scale(.96);
+}
+
+/* CATEGORIAS — MASCULINO */
+#catalog:has(.gender-card[data-gender="masculino"].active) .category-tab {
+  border-color: rgba(75, 151, 235, .35);
+  color: #a9c9ed;
+  background: linear-gradient(145deg, #111a27, #0b1019);
+}
+
+#catalog:has(.gender-card[data-gender="masculino"].active) .category-tab.active {
+  color: #fff;
+  border-color: #62adff;
+  background: linear-gradient(135deg, #174b80, #287fc9);
+  box-shadow: 0 3px 14px rgba(35, 125, 210, .25);
+}
+
+/* CATEGORIAS — FEMININO */
+#catalog:has(.gender-card[data-gender="feminino"].active) .category-tab {
+  border-color: rgba(231, 139, 181, .35);
+  color: #e9b4cd;
+  background: linear-gradient(145deg, #271521, #160e15);
+}
+
+#catalog:has(.gender-card[data-gender="feminino"].active) .category-tab.active {
+  color: #fff;
+  border-color: #f2a5c8;
+  background: linear-gradient(135deg, #873b62, #c15c8b);
+  box-shadow: 0 3px 14px rgba(193, 92, 139, .25);
+}
+
+/* TRANSIÇÃO DAS CATEGORIAS */
+#catalog .category-tab {
+  transition: background .25s ease, border-color .25s ease,
+              color .25s ease, transform .2s ease;
+}
+
+
+/* FEMININO — TONS MAIS CLAROS E ILUMINADOS */
+body:has(.gender-card[data-gender="feminino"].active) {
+    --female-light: #f7c5dc;
+    --female-main: #e88bb7;
+    --female-strong: #d96b9f;
+}/* FEMININO — ROSA VISÍVEL MESMO SEM SELEÇÃO */
+.gender-card[data-gender="feminino"] {
+    background: linear-gradient(135deg, #a94776, #c96896) !important;
+    border: 1px solid #e18ab1 !important;
+    color: #fff !important;
+    opacity: 1 !important;
+
+    box-shadow: 0 3px 12px rgba(201, 104, 150, 0.22) !important;
+
+    transition: all 0.25s ease;
+}
+
+/* FEMININO — MAIS ILUMINADO AO CLICAR */
+.gender-card[data-gender="feminino"].active {
+    background: linear-gradient(135deg, #e58ab5, #f3b5d0) !important;
+    border: 1px solid #ffd5e7 !important;
+    color: #421d30 !important;
+
+    box-shadow:
+        0 0 10px rgba(243, 181, 208, 0.55),
+        0 0 22px rgba(229, 138, 181, 0.35) !important;
+
+    transform: translateY(-1px);
+}
+/* =========================================
+   CM MODAS — ETIQUETA ESGOTADO PREMIUM
+========================================= */
+
+.photo-window {
+  position: relative;
+}
+
+.sold-out-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, .16);
+}
+
+.sold-out-overlay span {
+  display: block;
+  width: 88%;
+  padding: 11px 5px;
+  box-sizing: border-box;
+
+  background: linear-gradient(
+    110deg,
+    #650b19 0%,
+    #a8172d 35%,
+    #bd263b 50%,
+    #8c1025 100%
+  );
+
+  border-top: 1px solid rgba(255, 210, 210, .35);
+  border-bottom: 1px solid rgba(35, 0, 5, .65);
+
+  color: #fff5f5;
+  text-align: center;
+
+  font-size: clamp(17px, 4vw, 27px);
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+
+  transform: rotate(-7deg);
+
+  text-shadow: 0 2px 4px rgba(0,0,0,.45);
+
+  box-shadow:
+    0 5px 16px rgba(65, 0, 10, .4),
+    inset 0 1px 0 rgba(255,255,255,.13);
+}

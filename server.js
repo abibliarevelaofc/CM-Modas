@@ -136,12 +136,13 @@ const ProductSchema = new mongoose.Schema({
   description: { type: String, default: "" },
   likes: { type: Number, min: 0, default: 0 },
   colors: {
-    type: [{
-      name: { type: String, default: "" },
-      image: { type: String, default: "" }
-    }],
-    default: []
-  }
+  type: [{
+    name: { type: String, default: "" },
+    image: { type: String, default: "" },
+    soldOut: { type: Boolean, default: false }
+  }],
+  default: []
+}
 }, { timestamps: true });
 
 const Product = mongoose.model("Product", ProductSchema);
@@ -244,6 +245,50 @@ const InstallmentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Installment = mongoose.model("Installment", InstallmentSchema);
+
+// ========================================
+// MODELO DAS MOVIMENTAÇÕES DO CAIXA
+// RECEITAS E DESPESAS MANUAIS
+// ========================================
+
+const CashMovementSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+
+  type: {
+    type: String,
+    required: true,
+    enum: ["revenue", "expense"]
+  },
+
+  description: {
+    type: String,
+    required: true,
+    trim: true
+  },
+
+  amount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+
+  date: {
+    type: String,
+    required: true
+  }
+
+}, { timestamps: true });
+
+const CashMovement = mongoose.model(
+  "CashMovement",
+  CashMovementSchema
+);
+
 
 
 // ========================================
@@ -518,9 +563,10 @@ app.put("/api/products/:id", asyncRoute(async (req, res) => {
     }
 
     update.colors = body.colors.map(color => ({
-      name: String(color.name || "Cor").trim() || "Cor",
-      image: color.image.trim()
-    }));
+  name: String(color.name || "Cor").trim() || "Cor",
+  image: color.image.trim(),
+  soldOut: Boolean(color.soldOut)
+}));
   }
 
   // Se colors vier vazio ou ausente, as fotos existentes não serão alteradas.
@@ -1077,6 +1123,73 @@ if (installment.paid) {
 }));
 
 
+
+// ========================================
+// MOVIMENTAÇÕES DO CAIXA — MONGODB
+// ========================================
+
+// LISTAR RECEITAS E DESPESAS
+app.get("/api/cash-movements", asyncRoute(async (req, res) => {
+
+  const movements = await CashMovement.find()
+    .sort({ date: -1, createdAt: -1 })
+    .lean();
+
+  res.set("Cache-Control", "no-store");
+  res.json(movements);
+
+}));
+
+// REGISTRAR RECEITA OU DESPESA
+app.post("/api/cash-movements", asyncRoute(async (req, res) => {
+
+  const body = req.body || {};
+
+  const type = String(body.type || "");
+  const description = String(body.description || "").trim();
+  const amount = roundMoney(toNumber(body.amount, NaN));
+  const date = String(body.date || "");
+
+  if (!["revenue", "expense"].includes(type)) {
+    return res.status(400).json({
+      erro: "Tipo de movimentação inválido."
+    });
+  }
+
+  if (!description) {
+    return res.status(400).json({
+      erro: "Informe a descrição."
+    });
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({
+      erro: "Valor inválido."
+    });
+  }
+
+  if (!isValidDate(date)) {
+    return res.status(400).json({
+      erro: "Data inválida."
+    });
+  }
+
+  const movement = await CashMovement.create({
+    id: String(body.id || newId("mov")),
+    type,
+    description,
+    amount,
+    date
+  });
+
+  res.status(201).json({
+    sucesso: true,
+    movimentacao: movement
+  });
+
+}));
+
+
 // ========================================
 // RESET GERAL — LIMPA DADOS FINANCEIROS
 // PRESERVA PRODUTOS, ESTOQUE E BANNERS
@@ -1128,11 +1241,14 @@ app.post("/api/admin/reset", asyncRoute(async (req, res) => {
       // Apaga todos os clientes.
       const clientes = await Client.deleteMany({})
         .session(session);
+        const movimentacoes = await CashMovement.deleteMany({})
+  .session(session);
 
       excluidos = {
         vendas: vendas.deletedCount || 0,
         parcelas: parcelas.deletedCount || 0,
-        clientes: clientes.deletedCount || 0
+        clientes: clientes.deletedCount || 0,
+        movimentacoes: movimentacoes.deletedCount || 0
       };
     });
 
